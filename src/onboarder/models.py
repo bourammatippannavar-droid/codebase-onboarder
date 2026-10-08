@@ -9,10 +9,12 @@ ExternalOrigin = Literal["stdlib", "third-party"]
 
 class EdgeKind(StrEnum):
     IMPORTS = "imports"
+    CALLS = "calls"
 
 
 class Confidence(StrEnum):
     EXACT = "exact"
+    INFERRED = "inferred"
     EXTERNAL = "external"
     UNRESOLVED = "unresolved"
 
@@ -70,12 +72,22 @@ class ImportRef:
             return self.render() == other
         return False
 
+
+@dataclass(frozen=True)
+class CallSite:
+    name: tuple[str, ...]
+    enclosing_symbol: str | None
+    line: int
+    enclosing_class: str | None = None
+
+
 @dataclass(frozen=True)
 class FileFacts:
     symbols: tuple[Symbol, ...]
     imports: tuple[ImportRef, ...]
     diagnostics: tuple[str, ...]
     has_main_guard: bool
+    calls: tuple[CallSite, ...] = ()
 
     @property
     def classes(self) -> tuple[str, ...]:
@@ -101,3 +113,23 @@ class Edge:
     confidence: Confidence
     line: int
     origin: ExternalOrigin | None = None
+    src_symbol: str | None = None
+    dst_symbol: str | None = None
+    constructor: bool = False
+
+
+@dataclass(frozen=True)
+class CallStats:
+    unknown_receiver: int = 0
+    external_package: int = 0
+    builtin: int = 0
+
+    @property
+    def not_stored_count(self) -> int:
+        return self.unknown_receiver + self.external_package + self.builtin
+
+
+@dataclass(frozen=True)
+class CallResolution:
+    edges: tuple[Edge, ...]
+    stats: CallStats

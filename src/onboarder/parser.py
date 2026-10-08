@@ -1,7 +1,7 @@
 import ast
 from pathlib import Path
 
-from onboarder.models import FileFacts, ImportRef, Symbol, SymbolKind
+from onboarder.models import CallSite, FileFacts, ImportRef, Symbol, SymbolKind
 
 
 def _is_main_guard(test: ast.expr) -> bool:
@@ -31,6 +31,15 @@ def _qualified_path(path: Path, project_root: Path) -> str:
     if relative.parts and relative.parts[0] == "src":
         relative = Path(*relative.parts[1:])
     return relative.as_posix()
+
+
+def _dotted_name(node: ast.expr) -> tuple[str, ...] | None:
+    if isinstance(node, ast.Name):
+        return (node.id,)
+    if isinstance(node, ast.Attribute):
+        prefix = _dotted_name(node.value)
+        return (*prefix, node.attr) if prefix is not None else None
+    return None
 
 
 def parse_python_file(path: Path, project_root: Path | None = None) -> FileFacts:
@@ -110,4 +119,46 @@ def parse_python_file(path: Path, project_root: Path | None = None) -> FileFacts
         for node in ast.walk(tree)
         if isinstance(node, ast.If)
     )
-    return FileFacts(tuple(symbols), tuple(imports), (), has_main_guard)
+
+    calls: list[CallSite] = []
+
+    class CallVisitor(ast.NodeVisitor):
+        def __init__(self) -> None:
+            self.scope_parts: tuple[str, ...] = ()
+            self.class_scope: str | None = None
+
+        def visit_ClassDef(self, node: ast.ClassDef) -> None:
+            previous_parts = self.scope_parts
+            previous_class = self.class_scope
+            self.scope_parts = (*previous_parts, node.name)
+            self.class_scope = f"{relative_path}::{'.'.join(self.scope_parts)}"
+            self.generic_visit(node)
+            self.scope_parts = previous_parts
+            self.class_scope = previous_class
+
+        def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+            self._visit_function(node)
+
+        def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+            self._visit_function(node)
+
+        def _visit_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+            previous_parts = self.scope_parts
+            self.scope_parts = (*previous_parts, node.name)
+            self.generic_visit(node)
+            self.scope_parts = previous_parts
+
+        def visit_Call(self, node: ast.Call) -> None:
+            name = _dotted_name(node.func)
+            if name is not None:
+                enclosing = (
+                    f"{relative_path}::{'.'.join(self.scope_parts)}"
+                    if self.scope_parts
+                    else None
+                )
+                calls.append(CallSite(name, enclosing, node.lineno, self.class_scope))
+            self.generic_visit(node)
+
+    CallVisitor().visit(tree)
+    calls.sort(key=lambda call: (call.line, call.name, call.enclosing_symbol or ""))
+    return FileFacts(tuple(symbols), tuple(imports), (), has_main_guard, tuple(calls))

@@ -3,7 +3,8 @@ from pathlib import Path
 import typer
 
 from onboarder.graph import DependencyGraph, build_graph
-from onboarder.models import Confidence, Edge
+from onboarder.guide import build_guide
+from onboarder.models import Confidence, Edge, Symbol
 from onboarder.parser import parse_python_file
 from onboarder.resolver import resolve_project
 from onboarder.scanner import find_python_files
@@ -42,9 +43,10 @@ def _print_edge(edge: Edge, root: Path) -> None:
         else str(edge.confidence)
     )
     typer.echo(
-        f"  [{external_status}] "
+        f"  [{external_status}] {edge.kind.value.upper()} "
         f"{_display_path(edge.src_file, root)}:{edge.line}"
         f" -> {destination} ({edge.dst_name})"
+        f"{' (constructor)' if edge.constructor else ''}"
     )
 
 
@@ -147,6 +149,109 @@ def cycles(path: Path) -> None:
     """List circular import groups in project PATH."""
     root, _, _, graph = _project(path)
     _print_cycles(graph, root)
+
+
+def _lookup_symbol(graph: DependencyGraph, query: str) -> Symbol:
+    if "::" in query:
+        matches = [symbol for symbol in graph.symbols if symbol.qualified_name == query]
+    else:
+        matches = [symbol for symbol in graph.symbols if symbol.name == query]
+    matches.sort(key=lambda symbol: symbol.qualified_name)
+    if not matches:
+        typer.echo(f"No symbol matches: {query}")
+        raise typer.Exit(1)
+    if len(matches) > 1:
+        typer.echo(f"Ambiguous symbol '{query}'. Candidates:")
+        for symbol in matches:
+            typer.echo(f"  {symbol.qualified_name}")
+        raise typer.Exit(1)
+    return matches[0]
+
+
+def _show_symbol_edges(
+    root: Path,
+    heading: str,
+    edges: tuple[Edge, ...],
+) -> None:
+    typer.echo(f"{heading}:")
+    if not edges:
+        typer.echo("  (none)")
+    for edge in edges:
+        _print_edge(edge, root)
+
+
+@app.command()
+def find(path: Path, query: str) -> None:
+    """Find files and symbols whose names contain QUERY."""
+    root, files, _, graph = _project(path)
+    folded = query.casefold()
+    matches: list[tuple[str, int, str]] = []
+    for file in files:
+        relative = _display_path(file, root)
+        if folded in relative.casefold():
+            matches.append((relative, 0, f"File: {relative}"))
+        for symbol in graph.symbols:
+            if symbol.file == file and (
+                folded in symbol.name.casefold()
+                or folded in symbol.qualified_name.casefold()
+            ):
+                matches.append(
+                    (
+                        relative,
+                        symbol.start_line,
+                        (
+                            f"Symbol: {symbol.kind} {symbol.qualified_name} "
+                            f"(line {symbol.start_line})"
+                        ),
+                    )
+                )
+    typer.echo(f"Matches for '{query}':")
+    if not matches:
+        typer.echo("  (none)")
+    for _, _, rendered in sorted(matches, key=lambda item: (item[0], item[1], item[2])):
+        typer.echo(f"  {rendered}")
+
+
+@app.command()
+def callers(path: Path, symbol: str) -> None:
+    """Show call edges targeting SYMBOL."""
+    root, _, _, graph = _project(path)
+    target = _lookup_symbol(graph, symbol)
+    _show_symbol_edges(
+        root,
+        f"Callers of {target.qualified_name}",
+        graph.callers(target.qualified_name),
+    )
+
+
+@app.command()
+def callees(path: Path, symbol: str) -> None:
+    """Show call edges originating from SYMBOL."""
+    root, _, _, graph = _project(path)
+    target = _lookup_symbol(graph, symbol)
+    _show_symbol_edges(
+        root,
+        f"Callees of {target.qualified_name}",
+        graph.callees(target.qualified_name),
+    )
+
+
+@app.command()
+def usages(path: Path, symbol: str) -> None:
+    """Show call and import edges using SYMBOL."""
+    root, _, _, graph = _project(path)
+    target = _lookup_symbol(graph, symbol)
+    _show_symbol_edges(
+        root,
+        f"Usages of {target.qualified_name}",
+        graph.usages(target.qualified_name),
+    )
+
+
+@app.command()
+def guide(path: Path) -> None:
+    """Print a deterministic onboarding guide for PATH."""
+    typer.echo(build_guide(path).render())
 
 
 def _print_cycles(graph: DependencyGraph, root: Path) -> None:
