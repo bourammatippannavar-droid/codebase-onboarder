@@ -269,6 +269,8 @@ def resolve_calls(root: Path) -> CallResolution:
                             )
                         )
                         continue
+            elif len(parts) > 2 and parts[0] in bindings and bindings[parts[0]][2]:
+                not_stored_reason = "external_package"
             elif len(parts) == 2:
                 receiver, member = parts
                 binding = bindings.get(receiver)
