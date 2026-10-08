@@ -188,3 +188,14 @@ def test_cli_find_searches_file_and_symbol_names_case_insensitively() -> None:
 
     assert result.exit_code == 0
     assert "workers.py::Repository" in result.output
+
+
+def test_external_dotted_call_is_counted_and_not_stored(tmp_path: Path) -> None:
+    source = tmp_path / "main.py"
+    source.write_text("import requests\nrequests.api.get()\n", encoding="utf-8")
+
+    resolution = resolve_calls(tmp_path)
+
+    assert resolution.stats.external_package == 1
+    assert resolution.stats.unknown_receiver == 0
+    assert resolution.edges == ()
