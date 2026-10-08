@@ -9,6 +9,7 @@ from onboarder.scanner import MAX_FILE_SIZE, find_python_files
 
 FIXTURES = Path(__file__).parent / "fixtures"
 SAMPLE_PROJECT = FIXTURES / "sample_project"
+GRAPH_PROJECT = FIXTURES / "graph_project"
 
 
 def test_parser_extracts_classes_functions_and_imports() -> None:
@@ -26,7 +27,7 @@ def test_syntax_error_is_reported_and_scan_continues() -> None:
     result = runner.invoke(app, ["scan", str(SAMPLE_PROJECT)])
 
     assert result.exit_code == 0
-    assert "Syntax error: line " in result.output
+    assert "broken.py\n  Syntax error: line 1:" in result.output
     assert "app.py" in result.output
 
 
@@ -44,6 +45,7 @@ def test_scanner_skips_named_directories_and_oversized_files(tmp_path: Path) -> 
 def test_scanner_skips_symlinked_files_and_directories(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """Simulate links via is_symlink because Windows may require privileges to create them."""
     target = tmp_path / "target.py"
     target.write_text("pass\n", encoding="utf-8")
     linked_file = tmp_path / "linked.py"
@@ -70,3 +72,50 @@ def test_scan_does_not_execute_fixture_files() -> None:
 
     assert result.exit_code == 0
     assert not canary.exists()
+
+
+def test_parser_records_symbol_locations_and_main_guard() -> None:
+    parsed = parse_python_file(
+        GRAPH_PROJECT / "symbols.py", project_root=GRAPH_PROJECT
+    )
+
+    assert [
+        (symbol.kind, symbol.name, symbol.qualified_name, symbol.start_line, symbol.end_line)
+        for symbol in parsed.symbols
+    ] == [
+        ("class", "Outer", "symbols.py::Outer", 1, 3),
+        ("method", "method", "symbols.py::Outer.method", 2, 3),
+        ("function", "top_level", "symbols.py::top_level", 6, 7),
+    ]
+    assert parsed.has_main_guard
+
+
+def test_cli_deps_shows_each_resolution_status() -> None:
+    result = CliRunner().invoke(app, ["deps", str(GRAPH_PROJECT), "main.py"])
+
+    assert result.exit_code == 0
+    assert "exact" in result.output
+    assert "external" in result.output
+    assert "unresolved" in result.output
+    assert "stdlib" in result.output
+    assert "third-party" in result.output
+    assert "\\" not in result.output
+
+
+def test_cli_used_by_supports_transitive_depth() -> None:
+    result = CliRunner().invoke(
+        app,
+        ["used-by", str(GRAPH_PROJECT), "chain/base.py", "--transitive", "--depth", "2"],
+    )
+
+    assert result.exit_code == 0
+    assert "chain/middle.py" in result.output
+    assert "chain/top.py" in result.output
+
+
+def test_cli_cycles_lists_cycle_members() -> None:
+    result = CliRunner().invoke(app, ["cycles", str(GRAPH_PROJECT)])
+
+    assert result.exit_code == 0
+    assert "pkg/alpha.py" in result.output
+    assert "pkg/beta.py" in result.output

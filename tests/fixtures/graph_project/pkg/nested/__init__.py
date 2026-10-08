@@ -1,0 +1,1 @@
+"""A package imported by its full absolute name."""

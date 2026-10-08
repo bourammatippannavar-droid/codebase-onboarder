@@ -5,6 +5,10 @@ Python codebase without importing or executing the analyzed files.
 
 ```powershell
 uv run python -m onboarder scan <folder>
+uv run python -m onboarder deps <folder> <file>
+uv run python -m onboarder used-by <folder> <file> --transitive --depth 3
+uv run python -m onboarder cycles <folder>
 ```
 
-Run the test suite and linter with `uv run pytest` and `uv run ruff check .`.
+Run checks with `uv run pytest`, `uv run ruff check .`, and
+`uv run mypy --strict src`.

@@ -1,0 +1,1 @@
+"""Package rooted under src."""

@@ -1,0 +1,1 @@
+"""A child module used to test from-package import resolution."""

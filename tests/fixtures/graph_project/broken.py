@@ -1,0 +1,2 @@
+def incomplete(
+    return "invalid"

@@ -1,0 +1,1 @@
+"""Base of a dependency chain."""
