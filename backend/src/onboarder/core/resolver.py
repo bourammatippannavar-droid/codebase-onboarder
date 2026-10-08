@@ -2,9 +2,9 @@ import ast
 import sys
 from pathlib import Path
 
-from onboarder.models import Confidence, Edge, EdgeKind, ExternalOrigin, ImportRef
-from onboarder.parser import parse_python_file
-from onboarder.scanner import find_python_files
+from onboarder.core.models import Confidence, Edge, EdgeKind, ExternalOrigin, ImportRef
+from onboarder.core.parser import parse_python_file
+from onboarder.core.scanner import find_python_files
 
 
 def _module_name(path: Path, search_root: Path) -> str:

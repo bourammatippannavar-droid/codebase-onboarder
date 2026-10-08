@@ -1,0 +1,15 @@
+[importlinter]
+root_package = onboarder
+include_external_packages = True
+
+[importlinter:contract:core_forbidden_dependencies]
+name = Core excludes frameworks and outer layers
+type = forbidden
+source_modules =
+    onboarder.core
+forbidden_modules =
+    fastapi
+    sqlalchemy
+    psycopg
+    typer
+    onboarder.cli

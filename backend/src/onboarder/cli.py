@@ -2,12 +2,12 @@ from pathlib import Path
 
 import typer
 
-from onboarder.graph import DependencyGraph, build_graph
-from onboarder.guide import build_guide
-from onboarder.models import Confidence, Edge, Symbol
-from onboarder.parser import parse_python_file
-from onboarder.resolver import resolve_project
-from onboarder.scanner import find_python_files
+from onboarder.core.graph import DependencyGraph, build_graph
+from onboarder.core.guide import build_guide
+from onboarder.core.models import Confidence, Edge, Symbol
+from onboarder.core.parser import parse_python_file
+from onboarder.core.resolver import resolve_project
+from onboarder.core.scanner import find_python_files
 
 app = typer.Typer(no_args_is_help=True)
 

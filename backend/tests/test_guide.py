@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from onboarder.guide import build_guide
+from onboarder.core.guide import build_guide
 
 PROJECT = Path(__file__).parent / "fixtures" / "call_project"
 

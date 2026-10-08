@@ -2,12 +2,12 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
-from onboarder.calls import resolve_calls
-from onboarder.graph import DependencyGraph
-from onboarder.models import Confidence
-from onboarder.parser import parse_python_file
-from onboarder.resolver import resolve_project
-from onboarder.scanner import find_python_files
+from onboarder.core.calls import resolve_calls
+from onboarder.core.graph import DependencyGraph
+from onboarder.core.models import Confidence
+from onboarder.core.parser import parse_python_file
+from onboarder.core.resolver import resolve_project
+from onboarder.core.scanner import find_python_files
 
 
 @dataclass(frozen=True)

@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from onboarder.models import Edge
-from onboarder.resolver import resolve_project
+from onboarder.core.models import Edge
+from onboarder.core.resolver import resolve_project
 
 PROJECT = Path(__file__).parent / "fixtures" / "graph_project"
 

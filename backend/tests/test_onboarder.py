@@ -4,8 +4,8 @@ import pytest
 from typer.testing import CliRunner
 
 from onboarder.cli import app
-from onboarder.parser import parse_python_file
-from onboarder.scanner import MAX_FILE_SIZE, find_python_files
+from onboarder.core.parser import parse_python_file
+from onboarder.core.scanner import MAX_FILE_SIZE, find_python_files
 
 FIXTURES = Path(__file__).parent / "fixtures"
 SAMPLE_PROJECT = FIXTURES / "sample_project"

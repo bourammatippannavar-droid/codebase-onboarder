@@ -1,9 +1,9 @@
 from pathlib import Path
 
-from onboarder.calls import resolve_calls
-from onboarder.graph import build_graph
-from onboarder.models import Confidence, EdgeKind
-from onboarder.parser import parse_python_file
+from onboarder.core.calls import resolve_calls
+from onboarder.core.graph import build_graph
+from onboarder.core.models import Confidence, EdgeKind
+from onboarder.core.parser import parse_python_file
 
 PROJECT = Path(__file__).parent / "fixtures" / "call_project"
 

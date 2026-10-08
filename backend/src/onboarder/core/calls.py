@@ -3,7 +3,7 @@ import builtins
 from collections import Counter
 from pathlib import Path
 
-from onboarder.models import (
+from onboarder.core.models import (
     CallResolution,
     CallStats,
     Confidence,
@@ -12,9 +12,9 @@ from onboarder.models import (
     FileFacts,
     Symbol,
 )
-from onboarder.parser import parse_python_file
-from onboarder.resolver import resolve_project
-from onboarder.scanner import find_python_files
+from onboarder.core.parser import parse_python_file
+from onboarder.core.resolver import resolve_project
+from onboarder.core.scanner import find_python_files
 
 
 def _module_name(path: Path, root: Path) -> str:

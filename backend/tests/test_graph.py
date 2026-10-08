@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from onboarder.graph import build_graph
+from onboarder.core.graph import build_graph
 
 PROJECT = Path(__file__).parent / "fixtures" / "graph_project"
 

@@ -1,7 +1,7 @@
 import ast
 from pathlib import Path
 
-from onboarder.models import CallSite, FileFacts, ImportRef, Symbol, SymbolKind
+from onboarder.core.models import CallSite, FileFacts, ImportRef, Symbol, SymbolKind
 
 
 def _is_main_guard(test: ast.expr) -> bool:
