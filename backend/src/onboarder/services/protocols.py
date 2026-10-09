@@ -5,6 +5,10 @@ from typing import Protocol
 from uuid import UUID
 
 
+class RepositoryBusyError(RuntimeError):
+    """Raised when an analysis is already pending or running."""
+
+
 @dataclass(frozen=True)
 class FileInput:
     path: str
@@ -99,6 +103,16 @@ class AnalysisSnapshot:
     edges: tuple[EdgeRecord, ...]
 
 
+@dataclass(frozen=True)
+class SearchRecord:
+    kind: str
+    file_id: UUID
+    path: str
+    name: str
+    qualified_name: str | None
+    symbol_id: UUID | None
+
+
 class AnalysisRepository(Protocol):
     def start_analysis(self, name: str, local_path: Path) -> UUID: ...
 
@@ -113,8 +127,26 @@ class AnalysisRepository(Protocol):
 
     def fail_analysis(self, repository_id: UUID, error: str) -> None: ...
 
+    def mark_running(self, repository_id: UUID) -> None: ...
+
 
 class QueryRepository(Protocol):
     def list_repositories(self) -> tuple[RepositorySummary, ...]: ...
 
     def get_analysis(self, repository_id: UUID) -> AnalysisSnapshot | None: ...
+
+    def create_pending(self, name: str, local_path: Path) -> RepositorySummary: ...
+
+    def get_repository(self, repository_id: UUID) -> RepositorySummary | None: ...
+
+    def mark_running(self, repository_id: UUID) -> None: ...
+
+    def recover_interrupted(self) -> None: ...
+
+    def delete_repository(self, repository_id: UUID) -> bool: ...
+
+    def search(
+        self, repository_id: UUID, pattern: str, limit: int, offset: int
+    ) -> tuple[tuple[SearchRecord, ...], int]: ...
+
+    def ping(self) -> None: ...

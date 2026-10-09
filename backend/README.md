@@ -43,6 +43,34 @@ Apply the schema from `backend/` with `uv run alembic upgrade head`. The
 database-backed tests use `TEST_DATABASE_URL`, and skip with a clear reason
 only when that variable is unset or its PostgreSQL server is unreachable.
 
+## Run the API
+
+With the database schema applied and the root `.env` configured, start the
+synchronous FastAPI application from `backend/`:
+
+```powershell
+uv run uvicorn onboarder.api.app:app --reload
+```
+
+The versioned API is rooted at `/api/v1`:
+
+- `POST /repositories`, `GET /repositories`, `GET /repositories/{id}`,
+  `DELETE /repositories/{id}`
+- `GET /repositories/{id}/files`, `GET /repositories/{id}/files/{file_id}`
+- `GET /repositories/{id}/files/{file_id}/dependents` and `/dependencies`
+- `GET /repositories/{id}/symbols/{symbol_id}/usages`, `/callers`, `/callees`
+- `GET /repositories/{id}/search`, `/graph`, `/guide`
+- `GET /healthz` (liveness) and `GET /readyz` (database readiness)
+
+Errors use `application/problem+json` and include a request ID. Stable problem
+codes are `validation_error`, `repository_not_found`, `file_not_found`,
+`symbol_not_found`, `repository_not_ready`, `repository_busy`,
+`path_outside_root`, `analysis_failed`, and `internal_error`.
+
+Generate the frontend OpenAPI input from `backend/` with
+`uv run python -m onboarder.api.export_openapi`; this writes `openapi.json` in
+the current directory.
+
 ## Limitations
 
 Call resolution is static and conservative. Dynamic calls, `getattr`, decorators,

@@ -33,3 +33,38 @@ source_modules =
     onboarder.db.*
 forbidden_modules =
     fastapi
+
+[importlinter:contract:api_forbidden_dependencies]
+name = API avoids direct imports of core or database implementation
+type = forbidden
+source_modules =
+    onboarder.*
+forbidden_modules =
+    onboarder.db
+    sqlalchemy
+    psycopg
+    onboarder.core
+ignore_imports =
+    onboarder.db.* -> sqlalchemy
+    onboarder.db.* -> psycopg
+    onboarder.bootstrap -> onboarder.db.repository
+    onboarder.bootstrap -> onboarder.db.session
+    onboarder.cli -> onboarder.core.graph
+    onboarder.cli -> onboarder.core.guide
+    onboarder.cli -> onboarder.core.models
+    onboarder.cli -> onboarder.core.parser
+    onboarder.cli -> onboarder.core.resolver
+    onboarder.cli -> onboarder.core.scanner
+    onboarder.cli -> onboarder.db.repository
+    onboarder.cli -> onboarder.db.session
+    onboarder.services.analyze -> onboarder.core.calls
+    onboarder.services.analyze -> onboarder.core.models
+    onboarder.services.analyze -> onboarder.core.parser
+    onboarder.services.analyze -> onboarder.core.resolver
+    onboarder.services.analyze -> onboarder.core.scanner
+    onboarder.services.api -> onboarder.core.graph
+    onboarder.services.api -> onboarder.core.models
+    onboarder.services.queries -> onboarder.core.graph
+    onboarder.services.queries -> onboarder.core.models
+allow_indirect_imports = true
+unmatched_ignore_imports_alerting = none

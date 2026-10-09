@@ -2,7 +2,8 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import String, Text, delete, func, literal, select, union_all
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from onboarder.db.models import EdgeModel, FileModel, RepositoryModel, SymbolModel
@@ -12,7 +13,9 @@ from onboarder.services.protocols import (
     EdgeRecord,
     FileInput,
     FileRecord,
+    RepositoryBusyError,
     RepositorySummary,
+    SearchRecord,
     SymbolInput,
     SymbolRecord,
 )
@@ -40,6 +43,38 @@ class SqlAlchemyRepository:
             session.add(repository)
             session.flush()
             return repository.id
+
+    def create_pending(self, name: str, local_path: Path) -> RepositorySummary:
+        path_text = str(local_path)
+        try:
+            with self._sessions.begin() as session:
+                session.execute(select(func.pg_advisory_xact_lock(func.hashtext(path_text))))
+                previous = session.scalar(
+                    select(RepositoryModel)
+                    .where(RepositoryModel.local_path == path_text)
+                    .with_for_update()
+                )
+                if previous is not None:
+                    if previous.status in {"pending", "running"}:
+                        raise RepositoryBusyError
+                    session.delete(previous)
+                    session.flush()
+                repository = RepositoryModel(
+                    name=name, local_path=path_text, status="pending", stats={}
+                )
+                session.add(repository)
+                session.flush()
+                session.refresh(repository)
+                return _repository_summary(repository)
+        except IntegrityError as exc:
+            raise RepositoryBusyError from exc
+
+    def mark_running(self, repository_id: UUID) -> None:
+        with self._sessions.begin() as session:
+            repository = session.get(RepositoryModel, repository_id)
+            if repository is not None and repository.status == "pending":
+                repository.status = "running"
+                session.flush()
 
     def complete_analysis(
         self,
@@ -115,6 +150,85 @@ class SqlAlchemyRepository:
             repository.finished_at = func.now()
             session.flush()
 
+    def recover_interrupted(self) -> None:
+        with self._sessions.begin() as session:
+            session.query(RepositoryModel).filter(
+                RepositoryModel.status.in_(("pending", "running"))
+            ).update(
+                {
+                    RepositoryModel.status: "failed",
+                    RepositoryModel.error: "interrupted",
+                    RepositoryModel.finished_at: func.now(),
+                },
+                synchronize_session=False,
+            )
+
+    def delete_repository(self, repository_id: UUID) -> bool:
+        with self._sessions.begin() as session:
+            repository = session.get(RepositoryModel, repository_id)
+            if repository is None:
+                return False
+            if repository.status in {"pending", "running"}:
+                raise RepositoryBusyError
+            session.delete(repository)
+            return True
+
+    def search(
+        self, repository_id: UUID, pattern: str, limit: int, offset: int
+    ) -> tuple[tuple[SearchRecord, ...], int]:
+        with self._sessions() as session:
+            file_query = select(
+                FileModel.id.label("file_id"),
+                FileModel.path.label("path"),
+                FileModel.path.label("name"),
+                literal(None, type_=FileModel.id.type).label("symbol_id"),
+                literal(None, type_=Text()).label("qualified_name"),
+                literal("file", type_=String()).label("kind"),
+            ).where(
+                FileModel.repository_id == repository_id,
+                FileModel.path.ilike(pattern, escape="\\"),
+            )
+            symbol_query = (
+                select(
+                    FileModel.id.label("file_id"),
+                    FileModel.path.label("path"),
+                    SymbolModel.name.label("name"),
+                    SymbolModel.id.label("symbol_id"),
+                    SymbolModel.qualified_name.label("qualified_name"),
+                    literal("symbol", type_=String()).label("kind"),
+                )
+                .join(FileModel, SymbolModel.file_id == FileModel.id)
+                .where(
+                    FileModel.repository_id == repository_id,
+                    SymbolModel.name.ilike(pattern, escape="\\")
+                    | SymbolModel.qualified_name.ilike(pattern, escape="\\"),
+                )
+            )
+            combined = union_all(file_query, symbol_query).subquery()
+            total = int(session.scalar(select(func.count()).select_from(combined)) or 0)
+            rows = session.execute(
+                select(combined)
+                .order_by(combined.c.path, combined.c.kind, combined.c.name)
+                .limit(limit)
+                .offset(offset)
+            )
+            records = tuple(
+                SearchRecord(
+                    row.kind,
+                    row.file_id,
+                    row.path,
+                    row.name,
+                    row.qualified_name,
+                    row.symbol_id,
+                )
+                for row in rows
+            )
+            return records, total
+
+    def ping(self) -> None:
+        with self._sessions() as session:
+            session.execute(select(1))
+
     def list_repositories(self) -> tuple[RepositorySummary, ...]:
         with self._sessions() as session:
             rows = session.scalars(
@@ -189,6 +303,11 @@ class SqlAlchemyRepository:
                     for row in edges
                 ),
             )
+
+    def get_repository(self, repository_id: UUID) -> RepositorySummary | None:
+        with self._sessions() as session:
+            repository = session.get(RepositoryModel, repository_id)
+            return _repository_summary(repository) if repository is not None else None
 
 
 def _repository_summary(row: RepositoryModel) -> RepositorySummary:

@@ -1,1 +1,1 @@
-"""API layer placeholder."""
+"""HTTP API boundary for Onboarder."""

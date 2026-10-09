@@ -44,13 +44,21 @@ class AnalyzeRepository:
     def __call__(self, path: Path, name: str) -> tuple[UUID, dict[str, int]]:
         root = validate_analysis_path(path, self._settings.ANALYSIS_ROOT)
         repository_id = self._repository.start_analysis(name, root)
+        return repository_id, self.run_registered(repository_id, root, mark_running=False)
+
+    def run_registered(
+        self, repository_id: UUID, path: Path, *, mark_running: bool = True
+    ) -> dict[str, int]:
         try:
+            root = validate_analysis_path(path, self._settings.ANALYSIS_ROOT)
+            if mark_running:
+                self._repository.mark_running(repository_id)
             files, symbols, edges, stats = self._pipeline(root)
             self._repository.complete_analysis(repository_id, files, symbols, edges, stats)
         except Exception as exc:
             self._repository.fail_analysis(repository_id, _safe_error(exc))
             raise
-        return repository_id, stats
+        return stats
 
 
 def _safe_error(error: Exception) -> str:

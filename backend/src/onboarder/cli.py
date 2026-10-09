@@ -3,16 +3,14 @@ from pathlib import Path
 
 import typer
 
+from onboarder.bootstrap import create_cli_analyzer, create_cli_query_service
 from onboarder.core.graph import DependencyGraph, build_graph
 from onboarder.core.guide import build_guide
 from onboarder.core.models import Confidence, Edge, Symbol
 from onboarder.core.parser import parse_python_file
 from onboarder.core.resolver import resolve_project
 from onboarder.core.scanner import find_python_files
-from onboarder.db.repository import SqlAlchemyRepository
-from onboarder.db.session import create_session_factory
-from onboarder.services.analyze import AnalysisPathError, AnalyzeRepository
-from onboarder.services.queries import list_repositories
+from onboarder.services.analyze import AnalysisPathError
 from onboarder.settings import get_settings
 
 app = typer.Typer(no_args_is_help=True)
@@ -27,9 +25,8 @@ def main() -> None:
 def analyze(path: Path, name: str = typer.Option(..., "--name")) -> None:
     """Analyze PATH and persist its static-analysis results."""
     settings = get_settings()
-    repository = SqlAlchemyRepository(create_session_factory(settings.DATABASE_URL))
     try:
-        repository_id, stats = AnalyzeRepository(repository, settings)(path, name)
+        repository_id, stats = create_cli_analyzer(settings)(path, name)
     except AnalysisPathError as exc:
         raise typer.BadParameter(str(exc)) from exc
     typer.echo(f"Repository ID: {repository_id}")
@@ -40,15 +37,14 @@ def analyze(path: Path, name: str = typer.Option(..., "--name")) -> None:
 def repos() -> None:
     """List previously analyzed repositories."""
     settings = get_settings()
-    repository = SqlAlchemyRepository(create_session_factory(settings.DATABASE_URL))
-    results = list_repositories(repository)
+    results = create_cli_query_service(settings).list_repositories()
     if not results:
         typer.echo("(none)")
         return
     for item in results:
         typer.echo(
             f"{item.id}  {item.name}  {item.status}  "
-            f"{item.local_path}  {json.dumps(item.stats, sort_keys=True)}"
+            f"{item.path}  {json.dumps(item.stats, sort_keys=True)}"
         )
 
 
