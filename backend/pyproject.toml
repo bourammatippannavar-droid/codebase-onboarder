@@ -8,7 +8,13 @@ version = "0.1.0"
 description = "A command-line tool for scanning and parsing Python codebases."
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = ["typer>=0.12,<1"]
+dependencies = [
+    "alembic",
+    "psycopg[binary]",
+    "pydantic-settings",
+    "sqlalchemy>=2",
+    "typer>=0.12,<1",
+]
 
 [dependency-groups]
 dev = ["import-linter>=2.3", "mypy>=1.10", "pytest>=8", "ruff>=0.6"]

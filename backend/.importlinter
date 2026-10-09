@@ -13,3 +13,23 @@ forbidden_modules =
     psycopg
     typer
     onboarder.cli
+
+[importlinter:contract:services_forbidden_dependencies]
+name = Services depend on protocols, not infrastructure or frameworks
+type = forbidden
+source_modules =
+    onboarder.services.*
+forbidden_modules =
+    onboarder.db
+    sqlalchemy
+    psycopg
+    fastapi
+    typer
+
+[importlinter:contract:db_forbidden_api]
+name = Database layer excludes the API framework
+type = forbidden
+source_modules =
+    onboarder.db.*
+forbidden_modules =
+    fastapi

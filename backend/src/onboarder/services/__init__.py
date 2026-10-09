@@ -1,1 +1,1 @@
-"""Service layer placeholder."""
+"""Application use cases and their repository protocols."""
