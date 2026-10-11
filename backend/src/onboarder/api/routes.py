@@ -9,11 +9,14 @@ from onboarder.api.schemas import (
     GraphResponse,
     GuideResponse,
     HealthResponse,
+    OverviewResponse,
     PageResponse,
+    Problem,
     ReadyResponse,
     RepositoryCreate,
     RepositoryResponse,
     SearchResponseItem,
+    SourceResponse,
 )
 from onboarder.bootstrap import AnalysisSchedulingError, ApplicationContainer
 from onboarder.services.api import ServiceError
@@ -97,6 +100,29 @@ def list_files(
 )
 def get_file(repository_id: UUID, file_id: UUID, request: Request) -> FileResponse:
     return FileResponse.model_validate(_container(request).api.file(repository_id, file_id))
+
+
+@router.get(
+    "/repositories/{repository_id}/overview",
+    response_model=OverviewResponse,
+)
+def get_overview(repository_id: UUID, request: Request) -> OverviewResponse:
+    return OverviewResponse.model_validate(
+        _container(request).api.overview(repository_id)
+    )
+
+
+@router.get(
+    "/repositories/{repository_id}/files/{file_id}/source",
+    response_model=SourceResponse,
+    responses={413: {"model": Problem}, 415: {"model": Problem}},
+)
+def get_source(
+    repository_id: UUID, file_id: UUID, request: Request
+) -> SourceResponse:
+    return SourceResponse.model_validate(
+        _container(request).api.source(repository_id, file_id)
+    )
 
 
 def _file_relations(

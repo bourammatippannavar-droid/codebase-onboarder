@@ -98,6 +98,46 @@ class GraphResponse(ORMResponse):
     total_edges: int
 
 
+class OverviewFolderResponse(ORMResponse):
+    name: str
+    loc: int
+    files: int
+
+
+class OverviewHotspotResponse(ORMResponse):
+    file_id: UUID
+    path: str
+    imported_by: int
+    blast_radius: int
+    loc: int
+    flags: tuple[str, ...]
+
+
+class ReadingOrderResponse(ORMResponse):
+    file_id: UUID
+    path: str
+    reason: str
+
+
+class OverviewResponse(ORMResponse):
+    files: int
+    symbols: int
+    loc: int
+    cycle_count: int
+    folders: tuple[OverviewFolderResponse, ...]
+    call_confidence: dict[str, int]
+    resolution_rate: float | None
+    hotspots: tuple[OverviewHotspotResponse, ...]
+    reading_order: tuple[ReadingOrderResponse, ...]
+
+
+class SourceResponse(ORMResponse):
+    path: str
+    language: str
+    content: str
+    line_count: int
+
+
 class GuideResponse(ORMResponse):
     entry_points: tuple[str, ...]
     most_imported: tuple[tuple[str, int], ...]

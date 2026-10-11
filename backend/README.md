@@ -56,7 +56,9 @@ The versioned API is rooted at `/api/v1`:
 
 - `POST /repositories`, `GET /repositories`, `GET /repositories/{id}`,
   `DELETE /repositories/{id}`
+- `GET /repositories/{id}/overview`
 - `GET /repositories/{id}/files`, `GET /repositories/{id}/files/{file_id}`
+- `GET /repositories/{id}/files/{file_id}/source`
 - `GET /repositories/{id}/files/{file_id}/dependents` and `/dependencies`
 - `GET /repositories/{id}/symbols/{symbol_id}/usages`, `/callers`, `/callees`
 - `GET /repositories/{id}/search`, `/graph`, `/guide`
@@ -65,7 +67,8 @@ The versioned API is rooted at `/api/v1`:
 Errors use `application/problem+json` and include a request ID. Stable problem
 codes are `validation_error`, `repository_not_found`, `file_not_found`,
 `symbol_not_found`, `repository_not_ready`, `repository_busy`,
-`path_outside_root`, `analysis_failed`, and `internal_error`.
+`path_outside_root`, `analysis_failed`, `file_too_large`, `binary_file`, and
+`internal_error`.
 
 Generate the frontend OpenAPI input from `backend/` with
 `uv run python -m onboarder.api.export_openapi`; this writes `openapi.json` in

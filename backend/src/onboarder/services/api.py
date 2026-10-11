@@ -120,6 +120,51 @@ class GraphView:
 
 
 @dataclass(frozen=True)
+class OverviewFolder:
+    name: str
+    loc: int
+    files: int
+
+
+@dataclass(frozen=True)
+class OverviewHotspot:
+    file_id: UUID
+    path: str
+    imported_by: int
+    blast_radius: int
+    loc: int
+    flags: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ReadingOrderEntry:
+    file_id: UUID
+    path: str
+    reason: str
+
+
+@dataclass(frozen=True)
+class OverviewView:
+    files: int
+    symbols: int
+    loc: int
+    cycle_count: int
+    folders: tuple[OverviewFolder, ...]
+    call_confidence: dict[str, int]
+    resolution_rate: float | None
+    hotspots: tuple[OverviewHotspot, ...]
+    reading_order: tuple[ReadingOrderEntry, ...]
+
+
+@dataclass(frozen=True)
+class SourceView:
+    path: str
+    language: str
+    content: str
+    line_count: int
+
+
+@dataclass(frozen=True)
 class NewRepository:
     repository: RepositoryView
     analysis_path: Path
@@ -177,6 +222,132 @@ class OnboarderAPI:
             if item.file_id == file_id
         )
         return _file_view(file_row, symbols)
+
+    def source(self, repository_id: UUID, file_id: UUID) -> SourceView:
+        snapshot = self._ready_snapshot(repository_id)
+        file_row = next(
+            (
+                item
+                for item in snapshot.files
+                if item.id == file_id and item.repository_id == repository_id
+            ),
+            None,
+        )
+        if file_row is None:
+            raise ServiceError(404, "file_not_found", "File was not found.")
+
+        try:
+            analysis_root = self.settings.ANALYSIS_ROOT.resolve(strict=True)
+            repository_root = snapshot.repository.local_path.resolve(strict=True)
+            source_path = (repository_root / file_row.path).resolve(strict=True)
+            source_path.relative_to(repository_root)
+            source_path.relative_to(analysis_root)
+            max_bytes = min(self.settings.MAX_FILE_BYTES, 1_048_576)
+            with source_path.open("rb") as source_file:
+                content_bytes = source_file.read(max_bytes + 1)
+        except (FileNotFoundError, OSError, RuntimeError, ValueError) as exc:
+            raise ServiceError(404, "file_not_found", "File was not found.") from exc
+
+        if len(content_bytes) > max_bytes:
+            raise ServiceError(413, "file_too_large", "Source file exceeds the 1 MB limit.")
+        if b"\x00" in content_bytes:
+            raise ServiceError(415, "binary_file", "Binary files cannot be displayed.")
+
+        content = content_bytes.decode("utf-8", errors="replace")
+        return SourceView(
+            file_row.path,
+            "python" if Path(file_row.path).suffix.lower() == ".py" else "text",
+            content,
+            len(content.splitlines()),
+        )
+
+    def overview(self, repository_id: UUID) -> OverviewView:
+        """Build repository metrics; central files have at least five distinct importers."""
+        snapshot = self._ready_snapshot(repository_id)
+        graph = _core_graph(snapshot)
+        cycle_paths = {
+            path.relative_to(snapshot.repository.local_path).as_posix()
+            for cycle in graph.find_cycles()
+            for path in cycle
+        }
+        importers: dict[str, set[str]] = {}
+        for edge in snapshot.edges:
+            if (
+                edge.kind == "IMPORTS"
+                and edge.confidence == "exact"
+                and edge.dst_file_path is not None
+            ):
+                importers.setdefault(edge.dst_file_path, set()).add(edge.src_file_path)
+
+        folders: dict[str, list[int]] = {}
+        for item in snapshot.files:
+            parts = Path(item.path).parts
+            folder = parts[0] if len(parts) > 1 else "(root)"
+            totals = folders.setdefault(folder, [0, 0])
+            totals[0] += item.loc
+            totals[1] += 1
+
+        calls = {
+            confidence: sum(
+                edge.kind == "CALLS" and edge.confidence == confidence
+                for edge in snapshot.edges
+            )
+            for confidence in ("exact", "inferred", "unresolved")
+        }
+        resolved = calls["exact"] + calls["inferred"]
+        call_total = resolved + calls["unresolved"]
+
+        ranked = []
+        for item in snapshot.files:
+            imported_by = len(importers.get(item.path, set()))
+            dependents = graph.transitive_dependents(
+                snapshot.repository.local_path / item.path, 5
+            )
+            flags = []
+            if item.path in cycle_paths:
+                flags.append("cycle")
+            if imported_by >= 5:
+                flags.append("central")
+            ranked.append(
+                OverviewHotspot(
+                    item.id,
+                    item.path,
+                    imported_by,
+                    len(dependents),
+                    item.loc,
+                    tuple(flags),
+                )
+            )
+        ranked.sort(key=lambda item: (-item.blast_radius, item.path))
+
+        entry_points = {
+            item.path for item in snapshot.files if item.is_entry_point
+        }
+        file_by_path = {item.path: item for item in snapshot.files}
+        ordering = guide(self.repository, repository_id).reading_order
+        reading_order = tuple(
+            ReadingOrderEntry(
+                file_by_path[path].id,
+                path,
+                "entry point" if path in entry_points else "imported dependency",
+            )
+            for path in ordering[:8]
+            if path in file_by_path
+        )
+        return OverviewView(
+            len(snapshot.files),
+            len(snapshot.symbols),
+            sum(item.loc for item in snapshot.files),
+            len(cycle_paths),
+            tuple(
+                OverviewFolder(name, totals[0], totals[1])
+                for name, totals in sorted(folders.items())
+            ),
+            calls,
+            resolved / call_total if call_total else None,
+            tuple(ranked[:10]),
+            reading_order,
+        )
 
     def file_relations(
         self,
