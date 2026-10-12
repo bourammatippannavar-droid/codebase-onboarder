@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -96,6 +97,59 @@ class GraphResponse(ORMResponse):
     truncated: bool
     total_nodes: int
     total_edges: int
+
+
+class ModuleFolderNodeResponse(ORMResponse):
+    id: str
+    kind: Literal["folder"]
+    name: str
+    path: str
+    file_count: int
+    loc: int
+    in_cycle: bool
+
+
+class ModuleFileNodeResponse(ORMResponse):
+    id: str
+    kind: Literal["file"]
+    file_id: UUID
+    name: str
+    path: str
+    loc: int
+    imported_by: int
+    is_entry_point: bool
+    in_cycle: bool
+    central: bool
+
+
+class ModuleOutsideNodeResponse(ORMResponse):
+    id: str
+    kind: Literal["outside"]
+    name: str
+    path: str
+    file_count: int
+    loc: int
+    in_cycle: bool
+
+
+ModuleGraphNodeResponse = Annotated[
+    ModuleFolderNodeResponse | ModuleFileNodeResponse | ModuleOutsideNodeResponse,
+    Field(discriminator="kind"),
+]
+
+
+class ModuleGraphEdgeResponse(ORMResponse):
+    source: str
+    target: str
+    count: int
+    in_cycle: bool
+
+
+class ModuleGraphResponse(ORMResponse):
+    nodes: tuple[ModuleGraphNodeResponse, ...]
+    edges: tuple[ModuleGraphEdgeResponse, ...]
+    truncated: bool
+    total_nodes: int
 
 
 class OverviewFolderResponse(ORMResponse):

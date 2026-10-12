@@ -891,6 +891,66 @@
         }
       }
     },
+    "/api/v1/repositories/{repository_id}/graph/modules": {
+      "get": {
+        "summary": "Get Module Graph",
+        "operationId": "get_module_graph_api_v1_repositories__repository_id__graph_modules_get",
+        "parameters": [
+          {
+            "name": "repository_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Repository Id"
+            }
+          },
+          {
+            "name": "path_prefix",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Path Prefix"
+            }
+          },
+          {
+            "name": "include_tests",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Tests"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleGraphResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/repositories/{repository_id}/guide": {
       "get": {
         "summary": "Get Guide",
@@ -1351,6 +1411,234 @@
           "status"
         ],
         "title": "HealthResponse"
+      },
+      "ModuleFileNodeResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "const": "file",
+            "title": "Kind"
+          },
+          "file_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "File Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "loc": {
+            "type": "integer",
+            "title": "Loc"
+          },
+          "imported_by": {
+            "type": "integer",
+            "title": "Imported By"
+          },
+          "is_entry_point": {
+            "type": "boolean",
+            "title": "Is Entry Point"
+          },
+          "in_cycle": {
+            "type": "boolean",
+            "title": "In Cycle"
+          },
+          "central": {
+            "type": "boolean",
+            "title": "Central"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "file_id",
+          "name",
+          "path",
+          "loc",
+          "imported_by",
+          "is_entry_point",
+          "in_cycle",
+          "central"
+        ],
+        "title": "ModuleFileNodeResponse"
+      },
+      "ModuleFolderNodeResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "const": "folder",
+            "title": "Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "file_count": {
+            "type": "integer",
+            "title": "File Count"
+          },
+          "loc": {
+            "type": "integer",
+            "title": "Loc"
+          },
+          "in_cycle": {
+            "type": "boolean",
+            "title": "In Cycle"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "path",
+          "file_count",
+          "loc",
+          "in_cycle"
+        ],
+        "title": "ModuleFolderNodeResponse"
+      },
+      "ModuleGraphEdgeResponse": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "in_cycle": {
+            "type": "boolean",
+            "title": "In Cycle"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "target",
+          "count",
+          "in_cycle"
+        ],
+        "title": "ModuleGraphEdgeResponse"
+      },
+      "ModuleGraphResponse": {
+        "properties": {
+          "nodes": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/ModuleFolderNodeResponse"
+                },
+                {
+                  "$ref": "#/components/schemas/ModuleFileNodeResponse"
+                },
+                {
+                  "$ref": "#/components/schemas/ModuleOutsideNodeResponse"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "kind",
+                "mapping": {
+                  "file": "#/components/schemas/ModuleFileNodeResponse",
+                  "folder": "#/components/schemas/ModuleFolderNodeResponse",
+                  "outside": "#/components/schemas/ModuleOutsideNodeResponse"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Nodes"
+          },
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/ModuleGraphEdgeResponse"
+            },
+            "type": "array",
+            "title": "Edges"
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated"
+          },
+          "total_nodes": {
+            "type": "integer",
+            "title": "Total Nodes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nodes",
+          "edges",
+          "truncated",
+          "total_nodes"
+        ],
+        "title": "ModuleGraphResponse"
+      },
+      "ModuleOutsideNodeResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "const": "outside",
+            "title": "Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "file_count": {
+            "type": "integer",
+            "title": "File Count"
+          },
+          "loc": {
+            "type": "integer",
+            "title": "Loc"
+          },
+          "in_cycle": {
+            "type": "boolean",
+            "title": "In Cycle"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "path",
+          "file_count",
+          "loc",
+          "in_cycle"
+        ],
+        "title": "ModuleOutsideNodeResponse"
       },
       "OverviewFolderResponse": {
         "properties": {

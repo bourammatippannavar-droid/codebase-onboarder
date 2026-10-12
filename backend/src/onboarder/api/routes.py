@@ -9,6 +9,7 @@ from onboarder.api.schemas import (
     GraphResponse,
     GuideResponse,
     HealthResponse,
+    ModuleGraphResponse,
     OverviewResponse,
     PageResponse,
     Problem,
@@ -264,6 +265,21 @@ def get_graph(
     max_nodes: Annotated[int, Query(ge=1, le=150)] = 150,
 ) -> GraphResponse:
     return GraphResponse.model_validate(_container(request).api.graph(repository_id, max_nodes))
+
+
+@router.get(
+    "/repositories/{repository_id}/graph/modules",
+    response_model=ModuleGraphResponse,
+)
+def get_module_graph(
+    repository_id: UUID,
+    request: Request,
+    path_prefix: str = "",
+    include_tests: bool = False,
+) -> ModuleGraphResponse:
+    return ModuleGraphResponse.model_validate(
+        _container(request).api.module_graph(repository_id, path_prefix, include_tests)
+    )
 
 
 @router.get(

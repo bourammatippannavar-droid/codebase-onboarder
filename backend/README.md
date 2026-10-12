@@ -64,6 +64,8 @@ The versioned API is rooted at `/api/v1`:
 - `GET /repositories/{id}/files/{file_id}/dependents` and `/dependencies`
 - `GET /repositories/{id}/symbols/{symbol_id}/usages`, `/callers`, `/callees`
 - `GET /repositories/{id}/search`, `/graph`, `/guide`
+- `GET /repositories/{id}/graph/modules` (one folder level; a nonexistent
+  `path_prefix` returns an empty graph)
 - `GET /healthz` (liveness) and `GET /readyz` (database readiness)
 
 Errors use `application/problem+json` and include a request ID. Stable problem

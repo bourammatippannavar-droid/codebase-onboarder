@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 from uuid import UUID
 
 from onboarder.core.graph import DependencyGraph
@@ -117,6 +118,58 @@ class GraphView:
     truncated: bool
     total_nodes: int
     total_edges: int
+
+
+@dataclass(frozen=True)
+class ModuleFolderNode:
+    id: str
+    kind: Literal["folder"]
+    name: str
+    path: str
+    file_count: int
+    loc: int
+    in_cycle: bool
+
+
+@dataclass(frozen=True)
+class ModuleFileNode:
+    id: str
+    kind: Literal["file"]
+    file_id: UUID
+    name: str
+    path: str
+    loc: int
+    imported_by: int
+    is_entry_point: bool
+    in_cycle: bool
+    central: bool
+
+
+@dataclass(frozen=True)
+class ModuleOutsideNode:
+    id: str
+    kind: Literal["outside"]
+    name: str
+    path: str
+    file_count: int
+    loc: int
+    in_cycle: bool
+
+
+@dataclass(frozen=True)
+class ModuleGraphEdge:
+    source: str
+    target: str
+    count: int
+    in_cycle: bool
+
+
+@dataclass(frozen=True)
+class ModuleGraphView:
+    nodes: tuple[ModuleFolderNode | ModuleFileNode | ModuleOutsideNode, ...]
+    edges: tuple[ModuleGraphEdge, ...]
+    truncated: bool
+    total_nodes: int
 
 
 @dataclass(frozen=True)
@@ -437,6 +490,153 @@ class OnboarderAPI:
             len(snapshot.edges),
         )
 
+    def module_graph(
+        self,
+        repository_id: UUID,
+        path_prefix: str = "",
+        include_tests: bool = False,
+    ) -> ModuleGraphView:
+        """Aggregate one folder level; a nonexistent prefix intentionally returns an empty graph."""
+        prefix = _normalize_graph_prefix(path_prefix)
+        snapshot = self._ready_snapshot(repository_id)
+        files = tuple(
+            item
+            for item in snapshot.files
+            if include_tests or not _is_test_file(item.path)
+        )
+        prefix_files = tuple(
+            item
+            for item in files
+            if not prefix
+            or item.path.startswith(f"{prefix}/")
+            or item.path == prefix
+        )
+        children: dict[str, list[FileRecord]] = {}
+        direct_files: list[FileRecord] = []
+        prefix_depth = len(Path(prefix).parts) if prefix else 0
+        for item in prefix_files:
+            parts = Path(item.path).parts
+            if len(parts) <= prefix_depth:
+                continue
+            if len(parts) == prefix_depth + 1:
+                direct_files.append(item)
+            else:
+                folder = "/".join(parts[: prefix_depth + 1])
+                children.setdefault(folder, []).append(item)
+
+        cycle_components = _cycle_components(snapshot)
+        cycles = set().union(*cycle_components) if cycle_components else set()
+        file_paths = {item.path for item in files}
+        importers: dict[str, set[str]] = {}
+        for edge in snapshot.edges:
+            if (
+                edge.kind == "IMPORTS"
+                and edge.src_file_path in file_paths
+                and edge.dst_file_path is not None
+                and edge.dst_file_path in file_paths
+            ):
+                importers.setdefault(edge.dst_file_path, set()).add(edge.src_file_path)
+
+        node_by_file: dict[str, str] = {}
+        nodes: list[ModuleFolderNode | ModuleFileNode | ModuleOutsideNode] = []
+        for folder_path, members in children.items():
+            relative_path = folder_path
+            display_name = Path(folder_path).name
+            node_id = f"folder:{relative_path}"
+            nodes.append(
+                ModuleFolderNode(
+                    node_id,
+                    "folder",
+                    display_name,
+                    relative_path,
+                    len(members),
+                    sum(item.loc for item in members),
+                    any(item.path in cycles for item in members),
+                )
+            )
+            node_by_file.update((item.path, node_id) for item in members)
+        for item in direct_files:
+            node_id = f"file:{item.id}"
+            nodes.append(
+                ModuleFileNode(
+                    node_id,
+                    "file",
+                    item.id,
+                    Path(item.path).name,
+                    item.path,
+                    item.loc,
+                    len(importers.get(item.path, set())),
+                    item.is_entry_point,
+                    item.path in cycles,
+                    len(importers.get(item.path, set())) >= 5,
+                )
+            )
+            node_by_file[item.path] = node_id
+
+        file_by_path = {item.path: item for item in files}
+        edge_counts: dict[tuple[str, str], tuple[int, bool]] = {}
+        outside_members: dict[str, list[FileRecord]] = {}
+        for edge in snapshot.edges:
+            if edge.kind != "IMPORTS" or edge.dst_file_path is None:
+                continue
+            source_node = node_by_file.get(edge.src_file_path)
+            target_node = node_by_file.get(edge.dst_file_path)
+            if source_node is None and target_node is None:
+                continue
+            if source_node is None:
+                source_row = file_by_path.get(edge.src_file_path)
+                if source_row is None:
+                    continue
+                source_node = _outside_node_id(source_row.path)
+                outside_members.setdefault(source_node, []).append(source_row)
+            if target_node is None:
+                target_row = file_by_path.get(edge.dst_file_path)
+                if target_row is None:
+                    continue
+                target_node = _outside_node_id(target_row.path)
+                outside_members.setdefault(target_node, []).append(target_row)
+            key = (source_node, target_node)
+            count, is_cycle = edge_counts.get(key, (0, False))
+            edge_counts[key] = (
+                count + 1,
+                is_cycle
+                or any(
+                    edge.src_file_path in component
+                    and edge.dst_file_path in component
+                    for component in cycle_components
+                ),
+            )
+
+        outside_nodes: dict[str, ModuleOutsideNode] = {}
+        for node_id, members in outside_members.items():
+            unique_members = {item.path: item for item in members}
+            folder_path = node_id.removeprefix("outside:")
+            outside_nodes[node_id] = ModuleOutsideNode(
+                node_id,
+                "outside",
+                Path(folder_path).name if folder_path != "(root)" else "(root)",
+                folder_path,
+                len(unique_members),
+                sum(item.loc for item in unique_members.values()),
+                any(item.path in cycles for item in unique_members.values()),
+            )
+        nodes.extend(outside_nodes.values())
+        nodes.sort(key=lambda item: (-item.loc, item.path, item.kind))
+        total_nodes = len(nodes)
+        visible_nodes = nodes[:150]
+        visible_ids = {item.id for item in visible_nodes}
+        visible_edges = tuple(
+            ModuleGraphEdge(source, target, count, is_cycle)
+            for (source, target), (count, is_cycle) in sorted(edge_counts.items())
+            if source in visible_ids and target in visible_ids
+        )
+        return ModuleGraphView(
+            tuple(visible_nodes),
+            visible_edges,
+            total_nodes > 150,
+            total_nodes,
+        )
+
     def guide(self, repository_id: UUID) -> GuideResult:
         self._ready_snapshot(repository_id)
         return guide(self.repository, repository_id)
@@ -458,6 +658,55 @@ class OnboarderAPI:
 
 def _page[T](items: tuple[T, ...], limit: int, offset: int) -> Page[T]:
     return Page(items[offset : offset + limit], len(items))
+
+
+def _normalize_graph_prefix(value: str) -> str:
+    if "\\" in value or value.startswith("/") or Path(value).is_absolute():
+        raise ServiceError(
+            422,
+            "validation_error",
+            "path_prefix must be a relative path using forward slashes.",
+        )
+    parts = tuple(part for part in value.split("/") if part not in {"", "."})
+    if any(part == ".." for part in parts):
+        raise ServiceError(
+            422,
+            "validation_error",
+            "path_prefix must not contain parent-directory segments.",
+        )
+    if parts and ":" in parts[0]:
+        raise ServiceError(
+            422,
+            "validation_error",
+            "path_prefix must not be an absolute path.",
+        )
+    return "/".join(parts)
+
+
+def _is_test_file(path: str) -> bool:
+    parts = tuple(part.casefold() for part in Path(path).parts)
+    name = parts[-1]
+    return (
+        any(part in {"test", "tests", "__tests__"} for part in parts[:-1])
+        or name.startswith("test_")
+        or name.endswith("_test.py")
+    )
+
+
+def _outside_node_id(path: str) -> str:
+    parts = Path(path).parts
+    top_level = parts[0] if len(parts) > 1 else "(root)"
+    return f"outside:{top_level}"
+
+
+def _cycle_components(snapshot: AnalysisSnapshot) -> tuple[frozenset[str], ...]:
+    return tuple(
+        frozenset(
+            path.relative_to(snapshot.repository.local_path).as_posix()
+            for path in cycle
+        )
+        for cycle in _core_graph(snapshot).find_cycles()
+    )
 
 
 def _repository_view(row: RepositorySummary, settings: Settings) -> RepositoryView:
