@@ -79,6 +79,7 @@ class SearchResponseItem(ORMResponse):
     name: str
     qualified_name: str | None
     symbol_id: UUID | None
+    symbol_kind: str | None
 
 
 class PageResponse[T](BaseModel):

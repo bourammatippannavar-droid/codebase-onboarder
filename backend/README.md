@@ -60,6 +60,7 @@ The versioned API is rooted at `/api/v1`:
   `DELETE /repositories/{id}`
 - `GET /repositories/{id}/overview`
 - `GET /repositories/{id}/files`, `GET /repositories/{id}/files/{file_id}`
+- `GET /repositories/{id}/files/{file_id}/imports` and `/imported-by`
 - `GET /repositories/{id}/tree` (immediate file and folder children)
 - `GET /repositories/{id}/files/{file_id}/source`
 - `GET /repositories/{id}/files/{file_id}/dependents` and `/dependencies`
@@ -78,6 +79,7 @@ codes are `validation_error`, `repository_not_found`, `file_not_found`,
 Symbol relationship endpoints are paginated (`limit` and `offset`) and accept
 `min_confidence=exact|inferred|unresolved`; the default is `inferred`, and
 `unresolved` includes all confidence levels.
+Symbol search results include the matching symbol kind for precise filtering.
 
 Generate the frontend OpenAPI input from `backend/` with
 `uv run python -m onboarder.api.export_openapi`; this writes `openapi.json` in

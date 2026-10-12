@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from './client'
+import type { MinimumConfidence } from './client'
 
 export const repositoryKeys = {
   all: ['repositories'] as const,
@@ -16,13 +17,19 @@ export const repositoryKeys = {
     relation: 'dependents' | 'dependencies',
     options: { transitive?: boolean; depth?: number; limit?: number; offset?: number },
   ) => ['repositories', id, 'files', fileId, relation, options] as const,
+  tree: (id: string, path: string) => ['repositories', id, 'tree', path] as const,
   symbolEdges: (
     id: string,
     symbolId: string,
     relation: 'usages' | 'callers' | 'callees',
-    limit: number,
-    offset: number,
-  ) => ['repositories', id, 'symbols', symbolId, relation, limit, offset] as const,
+    options: { minConfidence: MinimumConfidence; limit: number; offset: number },
+  ) => ['repositories', id, 'symbols', symbolId, relation, options] as const,
+  fileImportEdges: (
+    id: string,
+    fileId: string,
+    relation: 'imports' | 'imported-by',
+    options: { minConfidence: MinimumConfidence; limit: number; offset: number },
+  ) => ['repositories', id, 'files', fileId, 'import-edges', relation, options] as const,
   search: (id: string, q: string, limit: number, offset: number) =>
     ['repositories', id, 'search', q, limit, offset] as const,
   overview: (id: string) => ['repositories', id, 'overview'] as const,
@@ -95,17 +102,57 @@ export function useFileRelations(
   })
 }
 
+export function useTree(id: string, pathPrefix = '') {
+  return useQuery({
+    queryKey: repositoryKeys.tree(id, pathPrefix),
+    queryFn: () => api.tree(id, pathPrefix),
+    enabled: Boolean(id),
+    staleTime: Infinity,
+  })
+}
+
 export function useSymbolEdges(
   id: string,
   symbolId: string,
   relation: 'usages' | 'callers' | 'callees',
-  limit = 50,
-  offset = 0,
+  options: {
+    minConfidence?: MinimumConfidence
+    limit?: number
+    offset?: number
+  } = {},
 ) {
+  const normalized = {
+    minConfidence: options.minConfidence ?? 'inferred',
+    limit: options.limit ?? 50,
+    offset: options.offset ?? 0,
+  }
   return useQuery({
-    queryKey: repositoryKeys.symbolEdges(id, symbolId, relation, limit, offset),
-    queryFn: () => api.symbolEdges(id, symbolId, relation, limit, offset),
+    queryKey: repositoryKeys.symbolEdges(id, symbolId, relation, normalized),
+    queryFn: () => api.symbolEdges(id, symbolId, relation, normalized),
     enabled: Boolean(id && symbolId),
+    staleTime: Infinity,
+  })
+}
+
+export function useFileImportEdges(
+  id: string,
+  fileId: string,
+  relation: 'imports' | 'imported-by',
+  options: {
+    minConfidence?: MinimumConfidence
+    limit?: number
+    offset?: number
+  } = {},
+) {
+  const normalized = {
+    minConfidence: options.minConfidence ?? 'inferred',
+    limit: options.limit ?? 50,
+    offset: options.offset ?? 0,
+  }
+  return useQuery({
+    queryKey: repositoryKeys.fileImportEdges(id, fileId, relation, normalized),
+    queryFn: () => api.fileImportEdges(id, fileId, relation, normalized),
+    enabled: Boolean(id && fileId),
     staleTime: Infinity,
   })
 }

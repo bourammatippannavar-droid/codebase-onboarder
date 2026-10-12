@@ -199,6 +199,58 @@ def get_dependencies(
     )
 
 
+@router.get(
+    "/repositories/{repository_id}/files/{file_id}/imports",
+    response_model=PageResponse[EdgeResponse],
+)
+def get_file_imports(
+    repository_id: UUID,
+    file_id: UUID,
+    request: Request,
+    limit: Limit = 50,
+    offset: Offset = 0,
+    min_confidence: MinimumConfidence = "inferred",
+) -> PageResponse[EdgeResponse]:
+    return _file_import_edges(
+        repository_id, file_id, request, "imports", limit, offset, min_confidence
+    )
+
+
+@router.get(
+    "/repositories/{repository_id}/files/{file_id}/imported-by",
+    response_model=PageResponse[EdgeResponse],
+)
+def get_file_imported_by(
+    repository_id: UUID,
+    file_id: UUID,
+    request: Request,
+    limit: Limit = 50,
+    offset: Offset = 0,
+    min_confidence: MinimumConfidence = "inferred",
+) -> PageResponse[EdgeResponse]:
+    return _file_import_edges(
+        repository_id, file_id, request, "imported-by", limit, offset, min_confidence
+    )
+
+
+def _file_import_edges(
+    repository_id: UUID,
+    file_id: UUID,
+    request: Request,
+    relation: str,
+    limit: int,
+    offset: int,
+    min_confidence: str,
+) -> PageResponse[EdgeResponse]:
+    page = _container(request).api.file_import_edges(
+        repository_id, file_id, relation, limit, offset, min_confidence
+    )
+    return PageResponse[EdgeResponse](
+        items=tuple(EdgeResponse.model_validate(item) for item in page.items),
+        total=page.total,
+    )
+
+
 def _symbol_edges(
     repository_id: UUID,
     symbol_id: UUID,

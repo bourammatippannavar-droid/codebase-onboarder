@@ -1,4 +1,4 @@
-import { Component } from 'react'
+import { Component, Suspense, lazy, useEffect, useRef, useState } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 import {
   Activity,
@@ -25,7 +25,12 @@ import {
 import { useRepositories } from './api/hooks'
 import { OverviewPage, RepositoriesPage } from './pages'
 import { Card, EmptyState, ErrorState, Kbd, ThemeToggle } from './components/ui'
-import { GraphPage } from './graph/GraphPage'
+import { Skeleton } from './components/ui'
+import { CommandPalette } from './command/CommandPalette'
+
+const GraphPage = lazy(() => import('./graph/GraphPage').then((module) => ({ default: module.GraphPage })))
+const ExplorerPage = lazy(() => import('./explorer/ExplorerPage'))
+const GuidePage = lazy(() => import('./guide/GuidePage'))
 
 class AppErrorBoundary extends Component<
   { children: ReactNode },
@@ -56,7 +61,25 @@ function Shell() {
   const { data: repositories = [] } = useRepositories()
   const { repositoryId } = useParams()
   const navigate = useNavigate()
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const searchButton = useRef<HTMLButtonElement>(null)
   const selected = repositories.find((repository) => repository.id === repositoryId)
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && selected) {
+        event.preventDefault()
+        setPaletteOpen(true)
+      }
+    }
+    window.addEventListener('keydown', handleShortcut)
+    return () => window.removeEventListener('keydown', handleShortcut)
+  }, [selected])
+
+  const closePalette = () => {
+    setPaletteOpen(false)
+    window.requestAnimationFrame(() => searchButton.current?.focus())
+  }
 
   return (
     <div className="app-shell">
@@ -108,8 +131,16 @@ function Shell() {
           ) : (
             <span className="nav-link disabled"><GitFork size={17} /> Graph</span>
           )}
-          <span className="nav-link disabled"><Search size={17} /> Explorer <small>soon</small></span>
-          <span className="nav-link disabled"><BookOpen size={17} /> Guide <small>soon</small></span>
+          {selected ? (
+            <NavLink to={`/repositories/${selected.id}/explorer`} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+              <Search size={17} /> Explorer
+            </NavLink>
+          ) : <span className="nav-link disabled"><Search size={17} /> Explorer</span>}
+          {selected ? (
+            <NavLink to={`/repositories/${selected.id}/guide`} className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+              <BookOpen size={17} /> Guide
+            </NavLink>
+          ) : <span className="nav-link disabled"><BookOpen size={17} /> Guide</span>}
         </nav>
         <div className="sidebar-bottom">
           <span className="connection-dot" />
@@ -121,25 +152,20 @@ function Shell() {
         <header className="topbar">
           <div className="breadcrumb">Workspace <span>/</span> {selected?.name ?? 'Repositories'}</div>
           <div className="topbar-actions">
-            <button className="search-trigger" type="button" aria-label="Search (not available yet)" disabled>
+            <button ref={searchButton} className="search-trigger" type="button" aria-label="Search repository" disabled={!selected} onClick={() => setPaletteOpen(true)}>
               <Search size={15} /><span>Search</span><Kbd><Command size={11} /> K</Kbd>
             </button>
             <ThemeToggle />
             <span className="avatar" aria-label="Local workspace"><Sparkles size={16} /></span>
           </div>
         </header>
-        <main className="page-content"><Outlet /></main>
+        <main className="page-content">
+          <Suspense fallback={<div className="page-wrap" aria-label="Loading page"><Skeleton lines={8} /></div>}>
+            <Outlet />
+          </Suspense>
+        </main>
       </div>
-    </div>
-  )
-}
-
-function ExplorerPlaceholder() {
-  const { repositoryId, fileId } = useParams()
-  return (
-    <div className="page-wrap">
-      <div className="page-heading"><span className="eyebrow">EXPLORER</span><h1>File explorer</h1></div>
-      <Card><EmptyState title="Explorer is coming soon" description={`Selected file ${fileId ?? ''} in repository ${repositoryId ?? ''}.`} /></Card>
+      {paletteOpen && selected && <CommandPalette repositoryId={selected.id} onClose={closePalette} />}
     </div>
   )
 }
@@ -152,19 +178,15 @@ function NotFound() {
   )
 }
 
-function GuidePlaceholder() {
-  return <div className="page-wrap"><Card><EmptyState title="Guide is coming soon" description="Your generated reading guide will be available here." /></Card></div>
-}
-
 function RoutedPages() {
   return (
     <Routes>
       <Route element={<Shell />}>
         <Route index element={<RepositoriesPage />} />
         <Route path="repositories/:repositoryId/overview" element={<OverviewPage />} />
-        <Route path="repositories/:repositoryId/explorer/:fileId" element={<ExplorerPlaceholder />} />
+        <Route path="repositories/:repositoryId/explorer" element={<ExplorerPage />} />
         <Route path="repositories/:repositoryId/graph" element={<GraphPage />} />
-        <Route path="repositories/:repositoryId/guide" element={<GuidePlaceholder />} />
+        <Route path="repositories/:repositoryId/guide" element={<GuidePage />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

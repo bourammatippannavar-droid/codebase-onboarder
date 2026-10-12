@@ -74,6 +74,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/repositories/{repository_id}/tree": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Tree */
+        get: operations["get_tree_api_v1_repositories__repository_id__tree_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/repositories/{repository_id}/overview": {
         parameters: {
             query?: never;
@@ -134,6 +151,40 @@ export interface paths {
         };
         /** Get Dependencies */
         get: operations["get_dependencies_api_v1_repositories__repository_id__files__file_id__dependencies_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repositories/{repository_id}/files/{file_id}/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get File Imports */
+        get: operations["get_file_imports_api_v1_repositories__repository_id__files__file_id__imports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/repositories/{repository_id}/files/{file_id}/imported-by": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get File Imported By */
+        get: operations["get_file_imported_by_api_v1_repositories__repository_id__files__file_id__imported_by_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -668,6 +719,8 @@ export interface components {
             qualified_name: string | null;
             /** Symbol Id */
             symbol_id: string | null;
+            /** Symbol Kind */
+            symbol_kind: string | null;
         };
         /** SourceResponse */
         SourceResponse: {
@@ -704,6 +757,38 @@ export interface components {
             start_line: number;
             /** End Line */
             end_line: number;
+        };
+        /** TreeFileResponse */
+        TreeFileResponse: {
+            /**
+             * File Id
+             * Format: uuid
+             */
+            file_id: string;
+            /** Name */
+            name: string;
+            /** Path */
+            path: string;
+            /** Loc */
+            loc: number;
+            /** Parse Status */
+            parse_status: string;
+        };
+        /** TreeFolderResponse */
+        TreeFolderResponse: {
+            /** Name */
+            name: string;
+            /** Path */
+            path: string;
+            /** File Count */
+            file_count: number;
+        };
+        /** TreeResponse */
+        TreeResponse: {
+            /** Folders */
+            folders: components["schemas"]["TreeFolderResponse"][];
+            /** Files */
+            files: components["schemas"]["TreeFileResponse"][];
         };
         /** ValidationError */
         ValidationError: {
@@ -906,6 +991,39 @@ export interface operations {
             };
         };
     };
+    get_tree_api_v1_repositories__repository_id__tree_get: {
+        parameters: {
+            query?: {
+                path_prefix?: string;
+            };
+            header?: never;
+            path: {
+                repository_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TreeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_overview_api_v1_repositories__repository_id__overview_get: {
         parameters: {
             query?: never;
@@ -1061,11 +1179,84 @@ export interface operations {
             };
         };
     };
+    get_file_imports_api_v1_repositories__repository_id__files__file_id__imports_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                min_confidence?: "exact" | "inferred" | "unresolved";
+            };
+            header?: never;
+            path: {
+                repository_id: string;
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageResponse_EdgeResponse_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_file_imported_by_api_v1_repositories__repository_id__files__file_id__imported_by_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                min_confidence?: "exact" | "inferred" | "unresolved";
+            };
+            header?: never;
+            path: {
+                repository_id: string;
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageResponse_EdgeResponse_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_usages_api_v1_repositories__repository_id__symbols__symbol_id__usages_get: {
         parameters: {
             query?: {
                 limit?: number;
                 offset?: number;
+                min_confidence?: "exact" | "inferred" | "unresolved";
             };
             header?: never;
             path: {
@@ -1101,6 +1292,7 @@ export interface operations {
             query?: {
                 limit?: number;
                 offset?: number;
+                min_confidence?: "exact" | "inferred" | "unresolved";
             };
             header?: never;
             path: {
@@ -1136,6 +1328,7 @@ export interface operations {
             query?: {
                 limit?: number;
                 offset?: number;
+                min_confidence?: "exact" | "inferred" | "unresolved";
             };
             header?: never;
             path: {

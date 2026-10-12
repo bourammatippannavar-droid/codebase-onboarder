@@ -171,8 +171,36 @@ def test_file_detail_includes_symbols_and_relationship_confidence_pagination(
         assert response.status_code == 200
         assert "total" in response.json()
 
+    search = client.get(f"{url}/search", params={"q": "helper"})
+    assert search.status_code == 200
+    assert any(
+        item["symbol_kind"] == "function"
+        for item in search.json()["items"]
+        if item["kind"] == "symbol"
+    )
+
     _assert_problem(
         client.get(usages_url, params={"min_confidence": "external"}),
         "validation_error",
         422,
     )
+
+
+def test_file_import_relationships_return_confident_line_annotated_edges(
+    explorer_client: Any,
+) -> None:
+    client = explorer_client
+    repository = client.container.repository
+    url = f"{_repository_url(client)}/files/{repository.file_helper}"
+
+    imports = client.get(f"{url}/imported-by")
+    assert imports.status_code == 200
+    assert imports.json()["total"] == 1
+    edge = imports.json()["items"][0]
+    assert edge["src_file"] == "main.py"
+    assert edge["confidence"] == "exact"
+    assert edge["line"] == 1
+
+    import_targets = client.get(f"{_repository_url(client)}/files/{repository.file_main}/imports")
+    assert import_targets.status_code == 200
+    assert import_targets.json()["items"][0]["dst_file"] == "helpers.py"

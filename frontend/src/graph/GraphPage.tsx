@@ -322,7 +322,7 @@ function DetailPanel({
             {blastLoading ? <LoaderCircle className="spin" size={15} /> : <GitFork size={15} />}
             {blastLoading ? 'Loading impact…' : 'Show blast radius'}
           </Button>
-          <Link className="text-link" to={`/repositories/${repositoryId}/explorer/${selected.file_id}`}>
+          <Link className="text-link" to={`/repositories/${repositoryId}/explorer?file=${encodeURIComponent(selected.file_id)}`}>
             Open in Explorer <ArrowRight size={14} />
           </Link>
         </div>

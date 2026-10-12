@@ -228,7 +228,7 @@ export function OverviewPage() {
   return (
     <div className="page-wrap">
       <div className="page-heading page-heading-row"><div><span className="eyebrow">REPOSITORY OVERVIEW</span><h1>Understand the shape of your code</h1><p>Analysis summary, dependency reach, and a sensible place to begin.</p></div><span className="ready-indicator"><span className="connection-dot" /> Analysis ready</span></div>
-      <OverviewContent data={data} onOpenFile={(fileId) => navigate(`/repositories/${repositoryId}/explorer/${fileId}`)} />
+      <OverviewContent data={data} onOpenFile={(fileId) => navigate(`/repositories/${repositoryId}/explorer?file=${encodeURIComponent(fileId)}`)} />
     </div>
   )
 }

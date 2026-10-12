@@ -103,6 +103,7 @@ class SearchView:
     name: str
     qualified_name: str | None
     symbol_id: UUID | None
+    symbol_kind: str | None
 
 
 @dataclass(frozen=True)
@@ -508,6 +509,35 @@ class OnboarderAPI:
         records = tuple(_file_view(file_by_path[item]) for item in related if item in file_by_path)
         return _page(records, limit, offset)
 
+    def file_import_edges(
+        self,
+        repository_id: UUID,
+        file_id: UUID,
+        relation: str,
+        limit: int,
+        offset: int,
+        min_confidence: str = "inferred",
+    ) -> Page[EdgeView]:
+        snapshot = self._ready_snapshot(repository_id)
+        if not any(item.id == file_id for item in snapshot.files):
+            raise ServiceError(404, "file_not_found", "File was not found.")
+        if relation not in {"imports", "imported-by"}:
+            raise ServiceError(422, "validation_error", "Invalid file import relation.")
+        confidence_rank = {"unresolved": 0, "external": 1, "inferred": 2, "exact": 3}
+        threshold = confidence_rank[min_confidence]
+        rows = tuple(
+            _edge_view(edge)
+            for edge in sorted(snapshot.edges, key=lambda item: (item.line, item.id))
+            if edge.kind == "IMPORTS"
+            and (
+                edge.src_file_id == file_id
+                if relation == "imports"
+                else edge.dst_file_id == file_id
+            )
+            and confidence_rank[edge.confidence] >= threshold
+        )
+        return _page(rows, limit, offset)
+
     def symbol_edges(
         self,
         repository_id: UUID,
@@ -541,10 +571,20 @@ class OnboarderAPI:
     def search(
         self, repository_id: UUID, query: str, limit: int, offset: int
     ) -> Page[SearchView]:
-        self._ready_snapshot(repository_id)
+        snapshot = self._ready_snapshot(repository_id)
         escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         rows, total = self.repository.search(repository_id, f"%{escaped}%", limit, offset)
-        return Page(tuple(_search_view(item) for item in rows), total)
+        kinds = {item.id: item.kind for item in snapshot.symbols}
+        return Page(
+            tuple(
+                _search_view(
+                    item,
+                    kinds.get(item.symbol_id) if item.symbol_id is not None else None,
+                )
+                for item in rows
+            ),
+            total,
+        )
 
     def graph(self, repository_id: UUID, max_nodes: int) -> GraphView:
         snapshot = self._ready_snapshot(repository_id)
@@ -824,9 +864,15 @@ def _edge_view(row: EdgeRecord) -> EdgeView:
     )
 
 
-def _search_view(row: SearchRecord) -> SearchView:
+def _search_view(row: SearchRecord, symbol_kind: str | None) -> SearchView:
     return SearchView(
-        row.kind, row.file_id, row.path, row.name, row.qualified_name, row.symbol_id
+        row.kind,
+        row.file_id,
+        row.path,
+        row.name,
+        row.qualified_name,
+        row.symbol_id,
+        symbol_kind,
     )
 
 

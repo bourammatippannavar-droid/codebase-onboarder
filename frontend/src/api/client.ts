@@ -4,6 +4,7 @@ export type Repository = components['schemas']['RepositoryResponse']
 export type Overview = components['schemas']['OverviewResponse']
 export type Problem = components['schemas']['Problem']
 export type FileData = components['schemas']['FileResponse']
+export type SymbolData = FileData['symbols'][number]
 export type Source = components['schemas']['SourceResponse']
 export type Edge = components['schemas']['EdgeResponse']
 export type SearchResult = components['schemas']['SearchResponseItem']
@@ -12,6 +13,10 @@ export type Guide = components['schemas']['GuideResponse']
 export type ModuleGraph = components['schemas']['ModuleGraphResponse']
 export type ModuleNode = ModuleGraph['nodes'][number]
 export type ModuleEdge = ModuleGraph['edges'][number]
+export type Tree = components['schemas']['TreeResponse']
+export type TreeFile = components['schemas']['TreeFileResponse']
+export type TreeFolder = components['schemas']['TreeFolderResponse']
+export type MinimumConfidence = 'exact' | 'inferred' | 'unresolved'
 export type Page<T> = { items: T[]; total: number }
 
 function queryString(values: Record<string, string | number | boolean | undefined>) {
@@ -110,11 +115,27 @@ export const api = {
     id: string,
     symbolId: string,
     relation: 'usages' | 'callers' | 'callees',
-    limit = 50,
-    offset = 0,
+    options: { minConfidence?: MinimumConfidence; limit?: number; offset?: number } = {},
   ) =>
     request<Page<Edge>>(
-      `/api/v1/repositories/${encodeURIComponent(id)}/symbols/${encodeURIComponent(symbolId)}/${relation}${queryString({ limit, offset })}`,
+      `/api/v1/repositories/${encodeURIComponent(id)}/symbols/${encodeURIComponent(symbolId)}/${relation}${queryString({
+        min_confidence: options.minConfidence ?? 'inferred',
+        limit: options.limit ?? 50,
+        offset: options.offset ?? 0,
+      })}`,
+    ),
+  fileImportEdges: (
+    id: string,
+    fileId: string,
+    relation: 'imports' | 'imported-by',
+    options: { minConfidence?: MinimumConfidence; limit?: number; offset?: number } = {},
+  ) =>
+    request<Page<Edge>>(
+      `/api/v1/repositories/${encodeURIComponent(id)}/files/${encodeURIComponent(fileId)}/${relation}${queryString({
+        min_confidence: options.minConfidence ?? 'inferred',
+        limit: options.limit ?? 50,
+        offset: options.offset ?? 0,
+      })}`,
     ),
   search: (id: string, q: string, limit = 50, offset = 0) =>
     request<Page<SearchResult>>(
@@ -141,6 +162,12 @@ export const api = {
       `/api/v1/repositories/${encodeURIComponent(id)}/graph/modules${queryString({
         path_prefix: pathPrefix,
         include_tests: includeTests,
+      })}`,
+    ),
+  tree: (id: string, pathPrefix = '') =>
+    request<Tree>(
+      `/api/v1/repositories/${encodeURIComponent(id)}/tree${queryString({
+        path_prefix: pathPrefix,
       })}`,
     ),
   guide: (id: string) =>
