@@ -27,6 +27,8 @@ export const repositoryKeys = {
     ['repositories', id, 'search', q, limit, offset] as const,
   overview: (id: string) => ['repositories', id, 'overview'] as const,
   graph: (id: string, maxNodes: number) => ['repositories', id, 'graph', maxNodes] as const,
+  moduleGraph: (id: string, path: string, includeTests: boolean) =>
+    ['repositories', id, 'graph', 'modules', path, includeTests] as const,
   guide: (id: string) => ['repositories', id, 'guide'] as const,
 }
 
@@ -129,6 +131,15 @@ export function useGraph(id: string, maxNodes = 150) {
   return useQuery({
     queryKey: repositoryKeys.graph(id, maxNodes),
     queryFn: () => api.graph(id, maxNodes),
+    enabled: Boolean(id),
+    staleTime: Infinity,
+  })
+}
+
+export function useModuleGraph(id: string, pathPrefix = '', includeTests = false) {
+  return useQuery({
+    queryKey: repositoryKeys.moduleGraph(id, pathPrefix, includeTests),
+    queryFn: () => api.moduleGraph(id, pathPrefix, includeTests),
     enabled: Boolean(id),
     staleTime: Infinity,
   })

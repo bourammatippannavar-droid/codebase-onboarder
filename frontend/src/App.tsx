@@ -25,6 +25,7 @@ import {
 import { useRepositories } from './api/hooks'
 import { OverviewPage, RepositoriesPage } from './pages'
 import { Card, EmptyState, ErrorState, Kbd, ThemeToggle } from './components/ui'
+import { GraphPage } from './graph/GraphPage'
 
 class AppErrorBoundary extends Component<
   { children: ReactNode },
@@ -97,7 +98,16 @@ function Shell() {
           ) : (
             <span className="nav-link disabled"><Activity size={17} /> Overview</span>
           )}
-          <span className="nav-link disabled"><GitFork size={17} /> Graph <small>soon</small></span>
+          {selected ? (
+            <NavLink
+              to={`/repositories/${selected.id}/graph`}
+              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+            >
+              <GitFork size={17} /> Graph
+            </NavLink>
+          ) : (
+            <span className="nav-link disabled"><GitFork size={17} /> Graph</span>
+          )}
           <span className="nav-link disabled"><Search size={17} /> Explorer <small>soon</small></span>
           <span className="nav-link disabled"><BookOpen size={17} /> Guide <small>soon</small></span>
         </nav>
@@ -142,10 +152,6 @@ function NotFound() {
   )
 }
 
-function GraphPlaceholder() {
-  return <div className="page-wrap"><Card><EmptyState title="Graph is coming soon" description="Dependency graph exploration will be available in a later step." /></Card></div>
-}
-
 function GuidePlaceholder() {
   return <div className="page-wrap"><Card><EmptyState title="Guide is coming soon" description="Your generated reading guide will be available here." /></Card></div>
 }
@@ -157,7 +163,7 @@ function RoutedPages() {
         <Route index element={<RepositoriesPage />} />
         <Route path="repositories/:repositoryId/overview" element={<OverviewPage />} />
         <Route path="repositories/:repositoryId/explorer/:fileId" element={<ExplorerPlaceholder />} />
-        <Route path="repositories/:repositoryId/graph" element={<GraphPlaceholder />} />
+        <Route path="repositories/:repositoryId/graph" element={<GraphPage />} />
         <Route path="repositories/:repositoryId/guide" element={<GuidePlaceholder />} />
         <Route path="*" element={<NotFound />} />
       </Route>

@@ -227,6 +227,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/repositories/{repository_id}/graph/modules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Module Graph */
+        get: operations["get_module_graph_api_v1_repositories__repository_id__graph_modules_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/repositories/{repository_id}/guide": {
         parameters: {
             query?: never;
@@ -405,6 +422,97 @@ export interface components {
         HealthResponse: {
             /** Status */
             status: string;
+        };
+        /** ModuleFileNodeResponse */
+        ModuleFileNodeResponse: {
+            /** Id */
+            id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "file";
+            /**
+             * File Id
+             * Format: uuid
+             */
+            file_id: string;
+            /** Name */
+            name: string;
+            /** Path */
+            path: string;
+            /** Loc */
+            loc: number;
+            /** Imported By */
+            imported_by: number;
+            /** Is Entry Point */
+            is_entry_point: boolean;
+            /** In Cycle */
+            in_cycle: boolean;
+            /** Central */
+            central: boolean;
+        };
+        /** ModuleFolderNodeResponse */
+        ModuleFolderNodeResponse: {
+            /** Id */
+            id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "folder";
+            /** Name */
+            name: string;
+            /** Path */
+            path: string;
+            /** File Count */
+            file_count: number;
+            /** Loc */
+            loc: number;
+            /** In Cycle */
+            in_cycle: boolean;
+        };
+        /** ModuleGraphEdgeResponse */
+        ModuleGraphEdgeResponse: {
+            /** Source */
+            source: string;
+            /** Target */
+            target: string;
+            /** Count */
+            count: number;
+            /** In Cycle */
+            in_cycle: boolean;
+        };
+        /** ModuleGraphResponse */
+        ModuleGraphResponse: {
+            /** Nodes */
+            nodes: (components["schemas"]["ModuleFolderNodeResponse"] | components["schemas"]["ModuleFileNodeResponse"] | components["schemas"]["ModuleOutsideNodeResponse"])[];
+            /** Edges */
+            edges: components["schemas"]["ModuleGraphEdgeResponse"][];
+            /** Truncated */
+            truncated: boolean;
+            /** Total Nodes */
+            total_nodes: number;
+        };
+        /** ModuleOutsideNodeResponse */
+        ModuleOutsideNodeResponse: {
+            /** Id */
+            id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "outside";
+            /** Name */
+            name: string;
+            /** Path */
+            path: string;
+            /** File Count */
+            file_count: number;
+            /** Loc */
+            loc: number;
+            /** In Cycle */
+            in_cycle: boolean;
         };
         /** OverviewFolderResponse */
         OverviewFolderResponse: {
@@ -1113,6 +1221,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GraphResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_module_graph_api_v1_repositories__repository_id__graph_modules_get: {
+        parameters: {
+            query?: {
+                path_prefix?: string;
+                include_tests?: boolean;
+            };
+            header?: never;
+            path: {
+                repository_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModuleGraphResponse"];
                 };
             };
             /** @description Validation Error */

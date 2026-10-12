@@ -9,6 +9,9 @@ export type Edge = components['schemas']['EdgeResponse']
 export type SearchResult = components['schemas']['SearchResponseItem']
 export type Graph = components['schemas']['GraphResponse']
 export type Guide = components['schemas']['GuideResponse']
+export type ModuleGraph = components['schemas']['ModuleGraphResponse']
+export type ModuleNode = ModuleGraph['nodes'][number]
+export type ModuleEdge = ModuleGraph['edges'][number]
 export type Page<T> = { items: T[]; total: number }
 
 function queryString(values: Record<string, string | number | boolean | undefined>) {
@@ -132,6 +135,13 @@ export const api = {
   graph: (id: string, maxNodes = 150) =>
     request<Graph>(
       `/api/v1/repositories/${encodeURIComponent(id)}/graph${queryString({ max_nodes: maxNodes })}`,
+    ),
+  moduleGraph: (id: string, pathPrefix = '', includeTests = false) =>
+    request<ModuleGraph>(
+      `/api/v1/repositories/${encodeURIComponent(id)}/graph/modules${queryString({
+        path_prefix: pathPrefix,
+        include_tests: includeTests,
+      })}`,
     ),
   guide: (id: string) =>
     request<Guide>(`/api/v1/repositories/${encodeURIComponent(id)}/guide`),
