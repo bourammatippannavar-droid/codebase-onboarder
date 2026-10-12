@@ -19,6 +19,8 @@ Run these commands from the `backend/` directory.
 
 Run checks from `backend/` with `uv run pytest`, `uv run ruff check .`,
 `uv run mypy --strict src`, and `uv run lint-imports`.
+Run frontend gates from `frontend/` with `npm run lint`, `npm run typecheck`,
+`npm test`, and `npm run build`.
 
 ## Local PostgreSQL
 
