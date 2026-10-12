@@ -247,6 +247,56 @@
         }
       }
     },
+    "/api/v1/repositories/{repository_id}/tree": {
+      "get": {
+        "summary": "Get Tree",
+        "operationId": "get_tree_api_v1_repositories__repository_id__tree_get",
+        "parameters": [
+          {
+            "name": "repository_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Repository Id"
+            }
+          },
+          {
+            "name": "path_prefix",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Path Prefix"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TreeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/repositories/{repository_id}/overview": {
       "get": {
         "summary": "Get Overview",
@@ -594,6 +644,21 @@
               "default": 0,
               "title": "Offset"
             }
+          },
+          {
+            "name": "min_confidence",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "exact",
+                "inferred",
+                "unresolved"
+              ],
+              "type": "string",
+              "default": "inferred",
+              "title": "Min Confidence"
+            }
           }
         ],
         "responses": {
@@ -667,6 +732,21 @@
               "default": 0,
               "title": "Offset"
             }
+          },
+          {
+            "name": "min_confidence",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "exact",
+                "inferred",
+                "unresolved"
+              ],
+              "type": "string",
+              "default": "inferred",
+              "title": "Min Confidence"
+            }
           }
         ],
         "responses": {
@@ -739,6 +819,21 @@
               "minimum": 0,
               "default": 0,
               "title": "Offset"
+            }
+          },
+          {
+            "name": "min_confidence",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "exact",
+                "inferred",
+                "unresolved"
+              ],
+              "type": "string",
+              "default": "inferred",
+              "title": "Min Confidence"
             }
           }
         ],
@@ -2135,6 +2230,87 @@
           "end_line"
         ],
         "title": "SymbolResponse"
+      },
+      "TreeFileResponse": {
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "File Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "loc": {
+            "type": "integer",
+            "title": "Loc"
+          },
+          "parse_status": {
+            "type": "string",
+            "title": "Parse Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_id",
+          "name",
+          "path",
+          "loc",
+          "parse_status"
+        ],
+        "title": "TreeFileResponse"
+      },
+      "TreeFolderResponse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "file_count": {
+            "type": "integer",
+            "title": "File Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "path",
+          "file_count"
+        ],
+        "title": "TreeFolderResponse"
+      },
+      "TreeResponse": {
+        "properties": {
+          "folders": {
+            "items": {
+              "$ref": "#/components/schemas/TreeFolderResponse"
+            },
+            "type": "array",
+            "title": "Folders"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/TreeFileResponse"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "folders",
+          "files"
+        ],
+        "title": "TreeResponse"
       },
       "ValidationError": {
         "properties": {

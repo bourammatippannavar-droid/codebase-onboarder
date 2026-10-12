@@ -173,6 +173,28 @@ class ModuleGraphView:
 
 
 @dataclass(frozen=True)
+class TreeFolder:
+    name: str
+    path: str
+    file_count: int
+
+
+@dataclass(frozen=True)
+class TreeFile:
+    file_id: UUID
+    name: str
+    path: str
+    loc: int
+    parse_status: str
+
+
+@dataclass(frozen=True)
+class TreeView:
+    folders: tuple[TreeFolder, ...]
+    files: tuple[TreeFile, ...]
+
+
+@dataclass(frozen=True)
 class OverviewFolder:
     name: str
     loc: int
@@ -275,6 +297,45 @@ class OnboarderAPI:
             if item.file_id == file_id
         )
         return _file_view(file_row, symbols)
+
+    def tree(self, repository_id: UUID, path_prefix: str = "") -> TreeView:
+        prefix = _normalize_graph_prefix(path_prefix)
+        snapshot = self._ready_snapshot(repository_id)
+        normalized_paths = tuple(
+            (item, Path(item.path).as_posix().split("/") if item.path else [])
+            for item in snapshot.files
+        )
+        prefix_parts = prefix.split("/") if prefix else []
+        folders: dict[str, int] = {}
+        files: list[TreeFile] = []
+
+        for item, parts in normalized_paths:
+            if parts[: len(prefix_parts)] != prefix_parts:
+                continue
+            remaining = parts[len(prefix_parts) :]
+            if not remaining:
+                continue
+            if len(remaining) == 1:
+                files.append(
+                    TreeFile(
+                        item.id,
+                        remaining[0],
+                        item.path,
+                        item.loc,
+                        item.parse_status,
+                    )
+                )
+            else:
+                child_path = "/".join((*prefix_parts, remaining[0]))
+                folders[child_path] = folders.get(child_path, 0) + 1
+
+        return TreeView(
+            tuple(
+                TreeFolder(Path(path).name, path, count)
+                for path, count in sorted(folders.items())
+            ),
+            tuple(sorted(files, key=lambda item: item.path)),
+        )
 
     def source(self, repository_id: UUID, file_id: UUID) -> SourceView:
         snapshot = self._ready_snapshot(repository_id)
@@ -448,7 +509,13 @@ class OnboarderAPI:
         return _page(records, limit, offset)
 
     def symbol_edges(
-        self, repository_id: UUID, symbol_id: UUID, kind: str, limit: int, offset: int
+        self,
+        repository_id: UUID,
+        symbol_id: UUID,
+        kind: str,
+        limit: int,
+        offset: int,
+        min_confidence: str = "inferred",
     ) -> Page[EdgeView]:
         snapshot = self._ready_snapshot(repository_id)
         symbol = next((item for item in snapshot.symbols if item.id == symbol_id), None)
@@ -462,7 +529,14 @@ class OnboarderAPI:
         else:
             selected = graph.callees(symbol.qualified_name)
         rows = _matched_edge_records(snapshot, selected)
-        return _page(tuple(_edge_view(item) for item in rows), limit, offset)
+        confidence_rank = {"unresolved": 0, "external": 1, "inferred": 2, "exact": 3}
+        threshold = confidence_rank[min_confidence]
+        filtered = tuple(
+            _edge_view(item)
+            for item in rows
+            if confidence_rank[item.confidence] >= threshold
+        )
+        return _page(filtered, limit, offset)
 
     def search(
         self, repository_id: UUID, query: str, limit: int, offset: int

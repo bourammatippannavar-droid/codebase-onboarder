@@ -1,4 +1,4 @@
-from typing import Annotated, cast
+from typing import Annotated, Literal, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Query, Request, Response, status
@@ -18,6 +18,7 @@ from onboarder.api.schemas import (
     RepositoryResponse,
     SearchResponseItem,
     SourceResponse,
+    TreeResponse,
 )
 from onboarder.bootstrap import AnalysisSchedulingError, ApplicationContainer
 from onboarder.services.api import ServiceError
@@ -26,6 +27,9 @@ router = APIRouter(prefix="/api/v1")
 health_router = APIRouter()
 Limit = Annotated[int, Query(ge=1, le=200)]
 Offset = Annotated[int, Query(ge=0)]
+MinimumConfidence = Annotated[
+    Literal["exact", "inferred", "unresolved"], Query()
+]
 
 
 def _container(request: Request) -> ApplicationContainer:
@@ -101,6 +105,20 @@ def list_files(
 )
 def get_file(repository_id: UUID, file_id: UUID, request: Request) -> FileResponse:
     return FileResponse.model_validate(_container(request).api.file(repository_id, file_id))
+
+
+@router.get(
+    "/repositories/{repository_id}/tree",
+    response_model=TreeResponse,
+)
+def get_tree(
+    repository_id: UUID,
+    request: Request,
+    path_prefix: str = "",
+) -> TreeResponse:
+    return TreeResponse.model_validate(
+        _container(request).api.tree(repository_id, path_prefix)
+    )
 
 
 @router.get(
@@ -188,9 +206,10 @@ def _symbol_edges(
     kind: str,
     limit: int,
     offset: int,
+    min_confidence: str,
 ) -> PageResponse[EdgeResponse]:
     page = _container(request).api.symbol_edges(
-        repository_id, symbol_id, kind, limit, offset
+        repository_id, symbol_id, kind, limit, offset, min_confidence
     )
     return PageResponse[EdgeResponse](
         items=tuple(EdgeResponse.model_validate(item) for item in page.items),
@@ -208,8 +227,11 @@ def get_usages(
     request: Request,
     limit: Limit = 50,
     offset: Offset = 0,
+    min_confidence: MinimumConfidence = "inferred",
 ) -> PageResponse[EdgeResponse]:
-    return _symbol_edges(repository_id, symbol_id, request, "usages", limit, offset)
+    return _symbol_edges(
+        repository_id, symbol_id, request, "usages", limit, offset, min_confidence
+    )
 
 
 @router.get(
@@ -222,8 +244,11 @@ def get_callers(
     request: Request,
     limit: Limit = 50,
     offset: Offset = 0,
+    min_confidence: MinimumConfidence = "inferred",
 ) -> PageResponse[EdgeResponse]:
-    return _symbol_edges(repository_id, symbol_id, request, "callers", limit, offset)
+    return _symbol_edges(
+        repository_id, symbol_id, request, "callers", limit, offset, min_confidence
+    )
 
 
 @router.get(
@@ -236,8 +261,11 @@ def get_callees(
     request: Request,
     limit: Limit = 50,
     offset: Offset = 0,
+    min_confidence: MinimumConfidence = "inferred",
 ) -> PageResponse[EdgeResponse]:
-    return _symbol_edges(repository_id, symbol_id, request, "callees", limit, offset)
+    return _symbol_edges(
+        repository_id, symbol_id, request, "callees", limit, offset, min_confidence
+    )
 
 
 @router.get(

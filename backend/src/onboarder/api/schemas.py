@@ -152,6 +152,25 @@ class ModuleGraphResponse(ORMResponse):
     total_nodes: int
 
 
+class TreeFolderResponse(ORMResponse):
+    name: str
+    path: str
+    file_count: int
+
+
+class TreeFileResponse(ORMResponse):
+    file_id: UUID
+    name: str
+    path: str
+    loc: int
+    parse_status: str
+
+
+class TreeResponse(ORMResponse):
+    folders: tuple[TreeFolderResponse, ...]
+    files: tuple[TreeFileResponse, ...]
+
+
 class OverviewFolderResponse(ORMResponse):
     name: str
     loc: int
