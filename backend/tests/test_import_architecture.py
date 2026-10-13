@@ -5,9 +5,11 @@ from pathlib import Path
 BACKEND = Path(__file__).parents[1]
 
 
-def test_import_linter_contract_passes_for_backend() -> None:
+def test_import_linter_contract_passes_for_backend(
+    lint_imports_executable: Path,
+) -> None:
     result = subprocess.run(
-        ["lint-imports"],
+        [str(lint_imports_executable)],
         cwd=BACKEND,
         capture_output=True,
         check=False,
@@ -17,7 +19,9 @@ def test_import_linter_contract_passes_for_backend() -> None:
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_import_linter_rejects_core_framework_dependency(tmp_path: Path) -> None:
+def test_import_linter_rejects_core_framework_dependency(
+    tmp_path: Path, lint_imports_executable: Path
+) -> None:
     core = tmp_path / "onboarder" / "core"
     core.mkdir(parents=True)
     (tmp_path / "onboarder" / "__init__.py").write_text("", encoding="utf-8")
@@ -26,7 +30,7 @@ def test_import_linter_rejects_core_framework_dependency(tmp_path: Path) -> None
     shutil.copyfile(BACKEND / ".importlinter", tmp_path / ".importlinter")
 
     result = subprocess.run(
-        ["lint-imports"],
+        [str(lint_imports_executable)],
         cwd=tmp_path,
         capture_output=True,
         check=False,

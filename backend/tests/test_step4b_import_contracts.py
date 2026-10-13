@@ -5,7 +5,12 @@ from pathlib import Path
 BACKEND = Path(__file__).parents[1]
 
 
-def _lint_violation(tmp_path: Path, package: str, dependency: str) -> subprocess.CompletedProcess[str]:
+def _lint_violation(
+    tmp_path: Path,
+    package: str,
+    dependency: str,
+    lint_imports_executable: Path,
+) -> subprocess.CompletedProcess[str]:
     shutil.copyfile(BACKEND / ".importlinter", tmp_path / ".importlinter")
     root = tmp_path / "onboarder"
     root.mkdir()
@@ -19,7 +24,7 @@ def _lint_violation(tmp_path: Path, package: str, dependency: str) -> subprocess
     source = root / package
     (source / "bad.py").write_text(f"import {dependency}\n", encoding="utf-8")
     return subprocess.run(
-        ["lint-imports"],
+        [str(lint_imports_executable)],
         cwd=tmp_path,
         capture_output=True,
         check=False,
@@ -27,15 +32,21 @@ def _lint_violation(tmp_path: Path, package: str, dependency: str) -> subprocess
     )
 
 
-def test_import_linter_rejects_services_database_dependency(tmp_path: Path) -> None:
-    result = _lint_violation(tmp_path, "services", "onboarder.db")
+def test_import_linter_rejects_services_database_dependency(
+    tmp_path: Path, lint_imports_executable: Path
+) -> None:
+    result = _lint_violation(
+        tmp_path, "services", "onboarder.db", lint_imports_executable
+    )
 
     assert result.returncode != 0
     assert "services" in result.stdout.lower() + result.stderr.lower()
 
 
-def test_import_linter_rejects_database_api_dependency(tmp_path: Path) -> None:
-    result = _lint_violation(tmp_path, "db", "fastapi")
+def test_import_linter_rejects_database_api_dependency(
+    tmp_path: Path, lint_imports_executable: Path
+) -> None:
+    result = _lint_violation(tmp_path, "db", "fastapi", lint_imports_executable)
 
     assert result.returncode != 0
     assert "fastapi" in result.stdout.lower() + result.stderr.lower()

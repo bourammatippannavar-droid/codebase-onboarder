@@ -45,21 +45,28 @@ def test_scanner_skips_named_directories_and_oversized_files(tmp_path: Path) -> 
 def test_scanner_skips_symlinked_files_and_directories(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Simulate links via is_symlink because Windows may require privileges to create them."""
+    """Exercise real links where possible and simulate them when creation is restricted."""
     target = tmp_path / "target.py"
     target.write_text("pass\n", encoding="utf-8")
     linked_file = tmp_path / "linked.py"
     linked_directory = tmp_path / "linked_directory"
-    linked_file.write_text("pass\n", encoding="utf-8")
-    linked_directory.mkdir()
-    (linked_directory / "nested.py").write_text("pass\n", encoding="utf-8")
-    original_is_symlink = Path.is_symlink
-    symlink_paths = {linked_file, linked_directory}
+    try:
+        linked_file.symlink_to(target)
+        linked_directory.symlink_to(tmp_path, target_is_directory=True)
+    except OSError:
+        for link in (linked_file, linked_directory):
+            if link.is_symlink():
+                link.unlink()
+        linked_file.write_text("pass\n", encoding="utf-8")
+        linked_directory.mkdir()
+        (linked_directory / "nested.py").write_text("pass\n", encoding="utf-8")
+        original_is_symlink = Path.is_symlink
+        symlink_paths = {linked_file, linked_directory}
 
-    def is_symlink(path: Path) -> bool:
-        return path in symlink_paths or original_is_symlink(path)
+        def is_symlink(path: Path) -> bool:
+            return path in symlink_paths or original_is_symlink(path)
 
-    monkeypatch.setattr(Path, "is_symlink", is_symlink)
+        monkeypatch.setattr(Path, "is_symlink", is_symlink)
 
     assert find_python_files(tmp_path) == [target]
 

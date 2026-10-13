@@ -98,21 +98,24 @@ def test_analysis_rejects_parent_directory_escape(tmp_path: Path) -> None:
 
 
 def test_analysis_rejects_symlink_escape(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Simulates a symlink resolution escape because Windows may deny link creation."""
+    """Reject an escaping link, simulating resolution when link creation is restricted."""
     allowed = tmp_path / "allowed"
     allowed.mkdir()
     simulated_link = allowed / "link"
-    simulated_link.mkdir()
     outside = tmp_path / "outside"
     outside.mkdir()
-    original_resolve = Path.resolve
+    try:
+        simulated_link.symlink_to(outside, target_is_directory=True)
+    except OSError:
+        simulated_link.mkdir()
+        original_resolve = Path.resolve
 
-    def resolve(path: Path, strict: bool = False) -> Path:
-        if path == simulated_link:
-            return outside
-        return original_resolve(path, strict=strict)
+        def resolve(path: Path, strict: bool = False) -> Path:
+            if path == simulated_link:
+                return outside
+            return original_resolve(path, strict=strict)
 
-    monkeypatch.setattr(Path, "resolve", resolve)
+        monkeypatch.setattr(Path, "resolve", resolve)
     service = AnalyzeRepository(FakeRepository(), _settings(allowed))
 
     with pytest.raises(AnalysisPathError, match="outside"):

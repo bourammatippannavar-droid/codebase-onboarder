@@ -5,7 +5,9 @@ from pathlib import Path
 BACKEND = Path(__file__).parents[1]
 
 
-def test_import_linter_rejects_api_core_import(tmp_path: Path) -> None:
+def test_import_linter_rejects_api_core_import(
+    tmp_path: Path, lint_imports_executable: Path
+) -> None:
     shutil.copyfile(BACKEND / ".importlinter", tmp_path / ".importlinter")
     root = tmp_path / "onboarder"
     for name in ("", "api", "core", "db", "services"):
@@ -15,7 +17,7 @@ def test_import_linter_rejects_api_core_import(tmp_path: Path) -> None:
     (root / "api" / "bad.py").write_text("import onboarder.core\n", encoding="utf-8")
 
     result = subprocess.run(
-        ["lint-imports"],
+        [str(lint_imports_executable)],
         cwd=tmp_path,
         capture_output=True,
         check=False,
