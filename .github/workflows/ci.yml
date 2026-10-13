@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    env:
+      POSTGRES_USER: onboarder
+      POSTGRES_PASSWORD: onboarder
+      POSTGRES_DB: onboarder
+      PGPASSWORD: onboarder
+      DATABASE_URL: postgresql+psycopg://onboarder:onboarder@localhost:5432/onboarder
+      TEST_DATABASE_URL: postgresql+psycopg://onboarder:onboarder@localhost:5432/onboarder_test
+      ANALYSIS_ROOT: ${{ github.workspace }}
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: onboarder
+          POSTGRES_PASSWORD: onboarder
+          POSTGRES_DB: onboarder
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U onboarder -d onboarder"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - uses: astral-sh/setup-uv@v6.6.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+          python-version: "3.12"
+
+      - run: uv sync --frozen
+
+      - name: Create test database
+        run: psql --host localhost --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --command "CREATE DATABASE onboarder_test;"
+
+      - run: uv run alembic upgrade head
+
+      - run: uv run ruff check .
+
+      - run: uv run mypy --strict src
+
+      - run: uv run lint-imports
+
+      - name: Run backend tests with coverage
+        run: uv run pytest --cov=onboarder --cov-report=term --cov-report=xml:coverage.xml
+
+      - uses: actions/upload-artifact@v4.6.2
+        with:
+          name: backend-coverage
+          path: backend/coverage.xml
+          if-no-files-found: error
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npm run typecheck
+
+      - run: npm test
+
+      - run: npm run build
+
+      - run: npm run check:api
+
+      # Informational only: report production advisories without failing CI.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev
+        continue-on-error: true

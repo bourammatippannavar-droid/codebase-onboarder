@@ -1,5 +1,8 @@
 # Codebase Onboarder
 
+[![CI (push)](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
+[![CI (pull request)](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg?branch=main&event=pull_request)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
+
 The application and its commands live in [backend](backend/README.md). Run project commands from `backend/`.
 
 For local PostgreSQL 16 provisioning, credentials, and migration setup, see
@@ -21,3 +24,33 @@ The Vite development server proxies `/api` requests to
 `npm run check:api`, and `npm audit --omit=dev`.
 Regenerate OpenAPI types from `backend/openapi.json` with `npm run gen:api`;
 verify the committed output with `npm run check:api`.
+
+## Development
+
+Set up the local PostgreSQL 16 databases and environment variables as described
+in [the backend README](backend/README.md#local-postgresql). From `backend/`,
+install locked dependencies and apply migrations:
+
+```sh
+uv sync --frozen
+uv run alembic upgrade head
+uv run ruff check .
+uv run mypy --strict src
+uv run lint-imports
+uv run pytest --cov=onboarder --cov-report=term --cov-report=xml
+```
+
+From `frontend/`, install locked dependencies and run all frontend checks:
+
+```sh
+npm ci
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm run check:api
+npm audit --omit=dev
+```
+
+Replace `OWNER/REPO` in the CI badges above with the GitHub owner and repository
+name after the project is hosted.
