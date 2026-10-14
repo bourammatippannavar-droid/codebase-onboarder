@@ -9,3 +9,7 @@ build/
 node_modules/
 frontend/dist/
 frontend/coverage/
+# Test coverage output
+coverage.xml
+.coverage
+htmlcov/

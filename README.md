@@ -1,7 +1,7 @@
 # Codebase Onboarder
 
-[![CI (push)](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
-[![CI (pull request)](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg?branch=main&event=pull_request)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
+[![CI (push)](https://github.com/bourammatippannavar-droid/codebase-onboarder/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/bourammatippannavar-droid/codebase-onboarder/actions/workflows/ci.yml)
+[![CI (pull request)](https://github.com/bourammatippannavar-droid/codebase-onboarder/actions/workflows/ci.yml/badge.svg?branch=main&event=pull_request)](https://github.com/bourammatippannavar-droid/codebase-onboarder/actions/workflows/ci.yml)
 
 The application and its commands live in [backend](backend/README.md). Run project commands from `backend/`.
 
@@ -51,6 +51,3 @@ npm run build
 npm run check:api
 npm audit --omit=dev
 ```
-
-Replace `OWNER/REPO` in the CI badges above with the GitHub owner and repository
-name after the project is hosted.
