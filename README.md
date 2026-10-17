@@ -75,7 +75,7 @@ Copy-Item .env.example .env
 notepad .env
 ```
 
-Use connection URLs in this form, with the passwords chosen above; set `ANALYSIS_ROOT` to a directory that will contain the local projects you analyze:
+Use these connection URLs with the passwords chosen above. If a password contains URL-reserved characters, percent-encode them; set `ANALYSIS_ROOT` to a directory that will contain the local projects you analyze:
 
 ```text
 DATABASE_URL=postgresql+psycopg://onboarder:choose-a-local-password@localhost:5432/onboarder
