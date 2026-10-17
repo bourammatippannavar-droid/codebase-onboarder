@@ -5,17 +5,19 @@
 
 Codebase Onboarder maps how a Python codebase fits together—its imports, calls, and circular dependencies—and generates an onboarding guide.
 
+It is a Python-only analyzer. Continuous integration runs on GitHub Actions.
+
 ## Why I built it
 
 New developers can spend days finding the right place to start in an unfamiliar codebase. File lists alone do not explain how modules connect or which paths through the code are useful. I built this tool to turn static source analysis into a navigable map and a practical reading order. It reads source without running the project being analyzed.
 
 ## Screenshots
 
-The requested captures are not present in this checkout: `docs/screenshots/overview.png`, `docs/screenshots/graph.png`, `docs/screenshots/explorer.png`, and `docs/screenshots/guide.png`.
+No screenshots are available in this checkout.
 
 ## Features
 
-- Scans Python source for classes, functions, methods, and imports without executing it.
+- Analyzes Python source only, finding classes, functions, methods, and imports without executing it.
 - Resolves project imports and statically detected calls, and reports circular imports.
 - Builds an interactive dependency graph and a file-and-symbol explorer with source, outline, and relationship views.
 - Generates an onboarding guide with entry points, a suggested reading order, import hotspots, and analysis-quality information.
@@ -126,29 +128,30 @@ The request returns while analysis is queued; the repository becomes available w
 
 ## Testing
 
-The current test suites contain **76 backend tests** and **34 frontend tests**. The observed runs passed all 76 backend tests and all 34 frontend tests; for constrained local machines, the single-worker Vitest command below avoids test-worker startup contention.
+The latest local runs passed **76 backend tests** with **91% total coverage** and **34 frontend tests**. These are test coverage figures, not analyzer accuracy metrics. GitHub Actions runs the backend and frontend gates shown below; its production dependency audit is informational and does not fail CI.
 
 ```powershell
 # backend/
 uv run ruff check .
 uv run mypy --strict src
 uv run lint-imports
-uv run pytest
+uv run pytest --cov=onboarder --cov-report=term --cov-report=xml:coverage.xml
 
 # frontend/
 npm run lint
 npm run typecheck
-npm test -- --pool=threads --maxWorkers=1 --no-file-parallelism
+npm test
 npm run build
 npm run check:api
-npm audit --omit=dev
 ```
+
+CI also runs `npm audit --omit=dev` as a non-blocking informational check.
 
 Database-backed tests use `TEST_DATABASE_URL`. For local PostgreSQL setup and all available CLI commands, see [backend/README.md](backend/README.md).
 
 ## The tool analyzing its own code
 
-Running the CLI against `backend/src/onboarder` found **27 Python files** and **301 symbols**. The generated guide reported **no circular imports** and a **94.3% call-resolution rate**: 247 resolved call edges out of 262 stored call edges.
+On **2026-10-17** (commit **`3faaf42`**), the CLI analyzed `backend/src/onboarder`: **27 Python files**, **301 symbols**, and **no circular imports**. Its guide reported a **94.3% call-resolution rate**: 247 resolved call edges out of 262 stored call edges.
 
 Reproduce the guide and cycle check from `backend/`:
 
