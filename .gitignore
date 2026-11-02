@@ -13,3 +13,6 @@ frontend/coverage/
 coverage.xml
 .coverage
 htmlcov/
+
+# Editor settings
+.vscode/
